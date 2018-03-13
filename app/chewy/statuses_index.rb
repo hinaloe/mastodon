@@ -7,7 +7,7 @@ class StatusesIndex < Chewy::Index
         type: 'kuromoji_tokenizer',
         mode: 'search', 
       }
-    }
+    },
     filter: {
       english_stop: {
         type: 'stop',
@@ -24,7 +24,7 @@ class StatusesIndex < Chewy::Index
       nfkc_normalizer: {
         type: 'icu_normalizer',
         name: 'nfkc',
-      }
+      },
     },
     analyzer: {
       content: {
