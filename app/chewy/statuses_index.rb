@@ -2,6 +2,12 @@
 
 class StatusesIndex < Chewy::Index
   settings index: { refresh_interval: '15m' }, analysis: {
+    tokenizer: {
+      kuromoji_tokenizer_search: {
+        type: 'kuromoji_tokenizer',
+        mode: 'search', 
+      }
+    }
     filter: {
       english_stop: {
         type: 'stop',
@@ -15,10 +21,14 @@ class StatusesIndex < Chewy::Index
         type: 'stemmer',
         language: 'possessive_english',
       },
+      nfkc_normalizer: {
+        type: 'icu_normalizer',
+        name: 'nfkc',
+      }
     },
     analyzer: {
       content: {
-        tokenizer: 'uax_url_email',
+        tokenizer: 'kuromoji_tokenizer_search',
         filter: %w(
           english_possessive_stemmer
           lowercase
@@ -26,6 +36,8 @@ class StatusesIndex < Chewy::Index
           cjk_width
           english_stop
           english_stemmer
+          kuromoji_baseform
+          nfkc_normalizer
         ),
       },
     },
