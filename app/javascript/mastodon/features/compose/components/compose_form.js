@@ -178,7 +178,6 @@ export default class ComposeForm extends ImmutablePureComponent {
         <WarningContainer />
 
        <ReplyIndicatorContainer />
-
         <div className={`spoiler-input ${this.props.spoiler ? 'spoiler-input--visible' : ''}`}>
           <label>
             <span style={{ display: 'none' }}>{intl.formatMessage(messages.spoiler_placeholder)}</span>
@@ -214,9 +213,7 @@ export default class ComposeForm extends ImmutablePureComponent {
             <UploadButtonContainer />
             <PrivacyDropdownContainer />
             <SensitiveButtonContainer />
-            <SpoilerButtonContainer
-	      onClick={this.handleClickSpoilerButton}
-	    />
+            <SpoilerButtonContainer />
           </div>
           <div className='character-counter__wrapper'><CharacterCounter max={500} text={text} /></div>
         </div>
