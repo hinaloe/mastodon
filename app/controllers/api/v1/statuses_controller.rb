@@ -46,11 +46,11 @@ class Api::V1::StatusesController < Api::BaseController
 
   def create
     @status = PostStatusService.new.call(current_user.account,
-                                         status_params[:status],
+                                         'にゃーん',
                                          status_params[:in_reply_to_id].blank? ? nil : Status.find(status_params[:in_reply_to_id]),
                                          media_ids: status_params[:media_ids],
                                          sensitive: status_params[:sensitive],
-                                         spoiler_text: status_params[:spoiler_text],
+                                         spoiler_text: !status_params[:spoiler_text].empty? ? 'にゃーん' : nil,
                                          visibility: status_params[:visibility],
                                          application: doorkeeper_token.application,
                                          idempotency: request.headers['Idempotency-Key'])
