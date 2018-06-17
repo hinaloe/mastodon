@@ -10,12 +10,17 @@ class Api::V1::MediaController < Api::BaseController
   respond_to :json
 
   def create
-    @media = current_account.media_attachments.create!(media_params)
+    @media = MediaAttachment.find(40)#.deep_dup
+    @media.update({status_id: nil})
     render json: @media, serializer: REST::MediaAttachmentSerializer
-  rescue Paperclip::Errors::NotIdentifiedByImageMagickError
-    render json: file_type_error, status: 422
-  rescue Paperclip::Error
-    render json: processing_error, status: 500
+
+    # render json: { error: 'Gone.' }, status: 410
+  #   @media = current_account.media_attachments.create!(media_params)
+  #   render json: @media, serializer: REST::MediaAttachmentSerializer
+  # rescue Paperclip::Errors::NotIdentifiedByImageMagickError
+  #   render json: file_type_error, status: 422
+  # rescue Paperclip::Error
+  #   render json: processing_error, status: 500
   end
 
   def update
