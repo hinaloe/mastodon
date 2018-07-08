@@ -13,7 +13,7 @@ fs.readFile('lib/mastodon/version.rb', 'utf8', (err, data) => {
 		process.exit(1)
 	}
 	
-	const newData = data.replace(/(?<=def flags\s+')([^']*)(?='\s+end)/g, `$1-${process.argv[2]}`)
+	const newData = data.replace(/(def flags\s+')([^']*)('\s+end)/g, `$1$2-${process.argv[2]}$3`)
 
 	fs.writeFile('lib/mastodon/version.rb', newData, 'utf8', (err)=>{
 		if(err) {
