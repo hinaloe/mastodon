@@ -78,6 +78,8 @@ RUN addgroup -g ${GID} mastodon && adduser -h /mastodon -s /bin/sh -D -G mastodo
 
 COPY . /mastodon
 
+RUN node bin/version-hash.js $(git rev-parse --short HEAD)
+
 RUN chown -R mastodon:mastodon /mastodon
 
 VOLUME /mastodon/public/system /mastodon/public/assets /mastodon/public/packs
