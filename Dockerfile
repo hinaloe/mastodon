@@ -61,6 +61,8 @@ RUN apt -y install git libicu-dev libidn11-dev \
 	bundle install -j$(nproc) --deployment --without development test && \
 	yarn install --pure-lockfile
 
+RUN node /opt/mastodon/bin/version-hash.js $(git -C /opt/mastodon rev-parse --short HEAD)
+
 FROM ubuntu:18.04
 
 # Copy over all the langs needed for runtime
@@ -116,7 +118,6 @@ ENV RAILS_SERVE_STATIC_FILES="true"
 # Set the run user
 USER mastodon
 
-RUN node bin/version-hash.js $(git rev-parse --short HEAD)
 
 # Precompile assets
 RUN cd ~ && \
