@@ -88,7 +88,7 @@ RUN apt update && \
 
 # Install masto runtime deps
 RUN apt -y --no-install-recommends install \
-	  libssl1.1 libpq5 imagemagick ffmpeg \
+	  libssl1.1 libpq5 imagemagick ffmpeg git \
 	  libicu60 libprotobuf10 libidn11 libyaml-0-2 \
 	  file ca-certificates tzdata libreadline7 && \
 	apt -y install gcc && \
@@ -107,6 +107,8 @@ RUN chmod +x /tini
 # Copy over masto source, and dependencies from building, and set permissions
 COPY --chown=mastodon:mastodon . /opt/mastodon
 COPY --from=build-dep --chown=mastodon:mastodon /opt/mastodon /opt/mastodon
+
+RUN node /opt/mastodon/bin/version-hash.js $(git -C /opt/mastodon rev-parse --short HEAD)
 
 # Run masto services in prod mode
 ENV RAILS_ENV="production"
