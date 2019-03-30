@@ -22,6 +22,8 @@ Rails.application.routes.draw do
   get '.well-known/host-meta', to: 'well_known/host_meta#show', as: :host_meta, defaults: { format: 'xml' }
   get '.well-known/webfinger', to: 'well_known/webfinger#show', as: :webfinger
   get '.well-known/change-password', to: redirect('/auth/edit')
+  get '.well-known/keybase-proof-config', to: 'well_known/keybase_proof_config#show'
+
   get 'manifest', to: 'manifests#show', defaults: { format: 'json' }
   get 'intent', to: 'intents#show'
   get 'custom.css', to: 'custom_css#show', as: :custom_css
@@ -105,6 +107,8 @@ Rails.application.routes.draw do
       resources :recovery_codes, only: [:create]
       resource :confirmation, only: [:new, :create]
     end
+
+    resources :identity_proofs, only: [:index, :show, :new, :create, :update]
 
     resources :applications, except: [:edit] do
       member do
@@ -248,6 +252,9 @@ Rails.application.routes.draw do
     # OEmbed
     get '/oembed', to: 'oembed#show', as: :oembed
 
+    # Identity proofs
+    get :proofs, to: 'proofs#index'
+
     # JSON / REST API
     namespace :v1 do
       resources :statuses, only: [:create, :show, :destroy] do
@@ -347,6 +354,7 @@ Rails.application.routes.draw do
         resources :followers, only: :index, controller: 'accounts/follower_accounts'
         resources :following, only: :index, controller: 'accounts/following_accounts'
         resources :lists, only: :index, controller: 'accounts/lists'
+        resources :identity_proofs, only: :index, controller: 'accounts/identity_proofs'
 
         member do
           post :follow
