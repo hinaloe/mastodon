@@ -65,6 +65,7 @@ sk:
         warning_preset_id: Použi varovnú predlohu
       defaults:
         autofollow: Pozvi k následovaniu tvojho profilu
+        avatar: Maskot
         bot: Toto je automatizovaný bot účet
         chosen_languages: Filtruj jazyky
         confirm_new_password: Znovu tvoje nové heslo, pre potvrdenie
@@ -108,6 +109,7 @@ sk:
         setting_system_font_ui: Použi základné systémové písmo
         setting_theme: Vzhľad webu
         setting_unfollow_modal: Vyžaduj potvrdenie pred skončením sledovania iného užívateľa
+        setting_use_blurhash: Ukáž farebné prechody pre skryté médiá
         severity: Závažnosť
         type: Typ importu
         username: Prezývka
@@ -119,6 +121,8 @@ sk:
         must_be_follower: Blokuj oboznámenia od užívateľov, ktorí ma nenásledujú
         must_be_following: Blokuj oboznámenia od ľudí, ktorých nesledujem
         must_be_following_dm: Blokuj súkromné správy od ľudí ktorých nesledujem
+      invite_request:
+        text: Prečo sa k nám chceš pridať?
       notification_emails:
         digest: Zasielať súhrnné emaily
         favourite: Zaslať email, ak si niekto obľúbi tvoj príspevok
@@ -129,6 +133,8 @@ sk:
         reblog: Zaslať email, ak niekto re-tootne tvoj príspevok
         report: Zaslať email, ak niekto podá nové nahlásenie
     'no': Nie
+    recommended: Odporúčané
     required:
+      mark: "*"
       text: povinné
     'yes': Áno
