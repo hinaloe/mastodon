@@ -53,6 +53,7 @@ jobs:
       - name: Pull base image
         continue-on-error: true
         run: |
+          docker pull ubuntu:18.04
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
           docker pull $IMAGE_ID:build_dep
 
@@ -78,7 +79,10 @@ jobs:
           echo VERSION=$VERSION
           docker tag image $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
-
+      - name: Push deps image
+        run: |
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+          echo IMAGE_ID=$IMAGE_ID
           echo VERSION=build_dep
           docker tag dep-image $IMAGE_ID:build_dep
           docker push $IMAGE_ID:build_dep
