@@ -64,7 +64,7 @@ jobs:
           docker build . --file Dockerfile --target build-dep --tag dep-image --cache-from $CACHE
 
       - name: Build image
-        run: docker build . --file Dockerfile --tag image
+        run: docker build . --file Dockerfile --tag image --cache-from dep-image
 
       - name: Push image
         run: |
