@@ -392,6 +392,7 @@
   .autosuggest-input,
   .spoiler-input {
     position: relative;
+    width: 100%;
   }
 
   .spoiler-input {
@@ -1589,6 +1590,10 @@ a.account__display-name {
 
 .star-icon.active {
   color: $gold-star;
+}
+
+.bookmark-icon.active {
+  color: $red-bookmark;
 }
 
 .no-reduce-motion .icon-button.star-icon {
