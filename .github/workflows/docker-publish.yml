@@ -58,7 +58,10 @@ jobs:
           docker pull $IMAGE_ID:build_dep
 
       - name: Build deps image
-        run: docker build . --file Dockerfile --target build-dep --tag dep-image
+        run: |
+          CACHE=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME:build_dep
+          echo using CACHE=$CACHE
+          docker build . --file Dockerfile --target build-dep --tag dep-image --cache-from $CACHE
 
       - name: Build image
         run: docker build . --file Dockerfile --tag image
