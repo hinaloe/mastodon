@@ -37,7 +37,7 @@ services:
 
   web:
     # build: .
-    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:run/nyan
+    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:latest-nyan
     restart: always
     env_file: .env.production
     command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p 3000"
@@ -57,7 +57,7 @@ services:
 
   streaming:
     # build: .
-    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:run/nyan
+    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:latest-nyan
     restart: always
     env_file: .env.production
     command: node ./streaming
@@ -74,7 +74,7 @@ services:
 
   sidekiq:
     # build: .
-    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:run/nyan
+    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:latest-nyan
     restart: always
     env_file: .env.production
     command: bundle exec sidekiq

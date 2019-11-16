@@ -47,6 +47,9 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Log into registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
+
       - name: Pull base image
         continue-on-error: true
         run: |
@@ -59,9 +62,6 @@ jobs:
       - name: Build image
         run: docker build . --file Dockerfile --tag image
 
-      - name: Log into registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
-
       - name: Push image
         run: |
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
@@ -72,8 +72,8 @@ jobs:
           # Use Docker `latest` tag convention
           [ "$VERSION" == "master" ] && VERSION=latest
           # 
-          [ "$VERSION" == "nyan" ] && VERSION="run/nyan"
-          [ "$VERSION" == "mdn-hinanet" ] && VERSION="run/mdn_hinanet"
+          [ "$VERSION" == "nyan" ] && VERSION="latest-nyan"
+          [ "$VERSION" == "mdn-hinanet" ] && VERSION="latest-mdn_hinanet"
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           docker tag image $IMAGE_ID:$VERSION
