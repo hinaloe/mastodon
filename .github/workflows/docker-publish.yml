@@ -63,8 +63,8 @@ jobs:
           # Use Docker `latest` tag convention
           [ "$VERSION" == "master" ] && VERSION=latest
           # 
-          [ "$VERSION" == "run/nyan" ] && VERSION="run/nyan"
-          [ "$VERSION" == "run/mdn-hinanet" ] && VERSION="run/mdn_hinanet"
+          [ "$VERSION" == "nyan" ] && VERSION="run/nyan"
+          [ "$VERSION" == "mdn-hinanet" ] && VERSION="run/mdn_hinanet"
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           docker tag image $IMAGE_ID:$VERSION
