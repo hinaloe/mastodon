@@ -47,6 +47,15 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Pull base image
+        continue-on-error: true
+        run: |
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+          docker pull $IMAGE_ID:build_dep
+
+      - name: Build deps image
+        run: docker build . --file Dockerfile --target build-dep --tag dep-image
+
       - name: Build image
         run: docker build . --file Dockerfile --tag image
 
@@ -69,3 +78,6 @@ jobs:
           echo VERSION=$VERSION
           docker tag image $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+
+          echo VERSION=build_dep
+          docker tag dep-image $IMAGE_ID:build_dep
