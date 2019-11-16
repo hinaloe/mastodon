@@ -36,8 +36,8 @@ services:
 #      - ./elasticsearch:/usr/share/elasticsearch/data
 
   web:
-    build: .
-    image: tootsuite/mastodon
+    # build: .
+    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:run/nyan
     restart: always
     env_file: .env.production
     command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p 3000"
@@ -56,8 +56,8 @@ services:
       - ./public/system:/mastodon/public/system
 
   streaming:
-    build: .
-    image: tootsuite/mastodon
+    # build: .
+    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:run/nyan
     restart: always
     env_file: .env.production
     command: node ./streaming
@@ -73,8 +73,8 @@ services:
       - redis
 
   sidekiq:
-    build: .
-    image: tootsuite/mastodon
+    # build: .
+    image: docker.pkg.github.com/hinaloe/mastodon/mastodon:run/nyan
     restart: always
     env_file: .env.production
     command: bundle exec sidekiq
