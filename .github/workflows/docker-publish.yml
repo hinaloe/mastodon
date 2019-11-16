@@ -81,3 +81,4 @@ jobs:
 
           echo VERSION=build_dep
           docker tag dep-image $IMAGE_ID:build_dep
+          docker push $IMAGE_ID:build_dep
