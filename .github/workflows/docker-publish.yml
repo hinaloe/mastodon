@@ -53,7 +53,7 @@ jobs:
       - name: Pull base image
         continue-on-error: true
         run: |
-          docker pull ubuntu:18.04
+          docker pull ubuntu:20.04
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
           docker pull $IMAGE_ID:build_dep
 
