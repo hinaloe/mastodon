@@ -95,10 +95,8 @@ RUN apt update && \
 	apt install -y whois wget && \
 	addgroup --gid $GID mastodon && \
 	useradd -m -u $UID -g $GID -d /opt/mastodon mastodon && \
-	echo "mastodon:`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 24 | mkpasswd -s -m sha-256`" | chpasswd
-
-# Install mastodon runtime deps
-RUN apt -y --no-install-recommends install \
+	echo "mastodon:`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 24 | mkpasswd -s -m sha-256`" | chpasswd && \
+  apt -y --no-install-recommends install \
 	  libssl1.1 libpq5 imagemagick ffmpeg git \
 	  libicu66 libprotobuf17 libidn11 libyaml-0-2 \
 	  file ca-certificates tzdata libreadline8 && \

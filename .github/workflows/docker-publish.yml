@@ -86,7 +86,7 @@ jobs:
           docker buildx build . --file Dockerfile --target build-dep --tag dep-image --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache
 
       - name: Build image
-        run: docker buildx build . --file Dockerfile --tag image --cache-from type=local,src=/tmp/.buildx-cache # --cache-to type=local,dest=/tmp/.buildx-cache
+        run: docker buildx build . --file Dockerfile --tag image:latest --cache-from type=local,src=/tmp/.buildx-cache # --cache-to type=local,dest=/tmp/.buildx-cache
         # uses: docker/build-push-action@v2
         # with:
         #   tags: image
