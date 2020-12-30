@@ -86,7 +86,20 @@ jobs:
           docker buildx build . --file Dockerfile --target build-dep --tag dep-image --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache
 
       - name: Build image
-        run: docker buildx build . --file Dockerfile --tag image:latest --cache-from type=local,src=/tmp/.buildx-cache # --cache-to type=local,dest=/tmp/.buildx-cache
+        run: |
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "master" ] && VERSION=latest
+          # 
+          [ "$VERSION" == "nyan" ] && VERSION="latest-nyan"
+          [ "$VERSION" == "mdn-hinanet" ] && VERSION="latest-mdn_hinanet"
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          docker buildx build . --file Dockerfile --tag $IMAGE_ID:$VERSION --cache-from type=local,src=/tmp/.buildx-cache --push # --cache-to type=local,dest=/tmp/.buildx-cache
         # uses: docker/build-push-action@v2
         # with:
         #   tags: image
