@@ -99,14 +99,13 @@ jobs:
           [ "$VERSION" == "mdn-hinanet" ] && VERSION="latest-mdn_hinanet"
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
-          docker buildx build . --file Dockerfile --tag $IMAGE_ID:$VERSION --cache-from type=local,src=/tmp/.buildx-cache --push # --cache-to type=local,dest=/tmp/.buildx-cache
+          docker buildx build . --file Dockerfile --tag $IMAGE_ID:$VERSION --cache-from type=local,src=/tmp/.buildx-cache --push --cache-to type=local,dest=/tmp/.buildx-cache
         # uses: docker/build-push-action@v2
         # with:
         #   tags: image
         #   cache-from: type=local,src=/tmp/.buildx-cache
         #   cache-to: type=local,dest=/tmp/.buildx-cache
 
-      - run: docker images
       # - name: Push image
       #   run: |
       #     IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
