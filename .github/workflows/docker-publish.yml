@@ -93,7 +93,7 @@ jobs:
         #   cache-from: type=local,src=/tmp/.buildx-cache
         #   cache-to: type=local,dest=/tmp/.buildx-cache
 
-        - run: docker images
+      - run: docker images
       # - name: Push image
       #   run: |
       #     IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
