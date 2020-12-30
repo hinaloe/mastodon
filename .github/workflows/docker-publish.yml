@@ -72,16 +72,18 @@ jobs:
       #     docker pull $IMAGE_ID:build_dep
 
       - name: Build deps image
-        uses: docker/build-push-action@v2
-        with:
-          target: build-dep
-          tags: dep-image
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+        # uses: docker/build-push-action@v2
+        # with:
+        #   target: build-dep
+        #   tags: dep-image
+        #   cache-from: type=local,src=/tmp/.buildx-cache
+        #   cache-to: type=local,dest=/tmp/.buildx-cache
       #  run: |
-          # CACHE=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME:build_dep
-          # echo using CACHE=$CACHE
-          # docker build . --file Dockerfile --target build-dep --tag dep-image --cache-from $CACHE
+      #     # CACHE=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME:build_dep
+      #     # echo using CACHE=$CACHE
+      #     docker build . --file Dockerfile --target build-dep --tag dep-image --cache-from $CACHE
+        run: |    
+          docker buildx build . --file Dockerfile --target build-dep --tag dep-image --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache
 
       - name: Build image
         run: docker buildx build . --file Dockerfile --tag image --cache-from type=local,src=/tmp/.buildx-cache # --cache-to type=local,dest=/tmp/.buildx-cache
