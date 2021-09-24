@@ -1,7 +1,7 @@
 .bundle
 .env
 .env.*
-.git
+# .git
 .gitattributes
 .gitignore
 .github
@@ -17,5 +17,4 @@ vendor/bundle
 postgres
 redis
 elasticsearch
-.github
 chart
