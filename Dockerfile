@@ -73,7 +73,7 @@ RUN bundle config build.nokogiri --with-iconv-lib=/usr/local/lib --with-iconv-in
  && bundle config set deployment 'true'\
  && bundle config set without 'development test' \
  && bundle install -j"$(nproc)" --no-cache \
- && yarn install --pure-lockfile --ignore-engines \
+ && NODE_TLS_REJECT_UNAUTHORIZED=0 yarn install --pure-lockfile --ignore-engines \
  && yarn cache clean
 
 RUN addgroup -g ${GID} mastodon && adduser -h /mastodon -s /bin/sh -D -G mastodon -u ${UID} mastodon \
