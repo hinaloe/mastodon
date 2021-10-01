@@ -21,7 +21,7 @@ WORKDIR /mastodon
 
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=node /usr/local/bin/npm /usr/local/bin/npm
+# COPY --from=node /usr/local/bin/npm /usr/local/bin/npm
 COPY --from=node /opt/yarn-* /opt/yarn
 
 RUN apk -U upgrade \
@@ -49,6 +49,7 @@ RUN apk -U upgrade \
  && update-ca-certificates \
  && ln -s /opt/yarn/bin/yarn /usr/local/bin/yarn \
  && ln -s /opt/yarn/bin/yarnpkg /usr/local/bin/yarnpkg \
+ && ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && mkdir -p /tmp/src /opt \
  && wget -O libiconv.tar.gz "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-$LIBICONV_VERSION.tar.gz" \
  && echo "$LIBICONV_DOWNLOAD_SHA256 *libiconv.tar.gz" | sha256sum -c - \
