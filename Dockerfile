@@ -68,8 +68,10 @@ RUN gem install bundler -v 2.2.28 -N
 COPY Gemfile Gemfile.lock package.json yarn.lock .yarnclean /mastodon/
 
 RUN bundle config build.nokogiri --with-iconv-lib=/usr/local/lib --with-iconv-include=/usr/local/include \
- && bundle install -j$(getconf _NPROCESSORS_ONLN) --deployment --without test development --no-cache
-RUN yarn install --pure-lockfile --ignore-engines \
+ && bundle config set deployment 'true'\
+ && bundle config set without 'development test' \
+ && bundle install -j"$(nproc)" --no-cache \
+ && yarn install --pure-lockfile --ignore-engines \
  && yarn cache clean
 
 RUN addgroup -g ${GID} mastodon && adduser -h /mastodon -s /bin/sh -D -G mastodon -u ${UID} mastodon \
