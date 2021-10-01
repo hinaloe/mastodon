@@ -43,7 +43,7 @@ RUN apk -U upgrade \
     imagemagick \
     libidn \
     libpq \
-    libc6-compact \
+    libc6-compat \
     protobuf \
     tini \
     tzdata \
