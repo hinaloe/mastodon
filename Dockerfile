@@ -1,5 +1,5 @@
 FROM node:8.11.3-alpine as node
-FROM ruby:2.4.4-alpine3.6
+FROM ruby:2.4.10-alpine3.11
 
 LABEL maintainer="https://github.com/tootsuite/mastodon" \
       description="Your self-hosted, globally interconnected microblogging community"
@@ -62,11 +62,14 @@ RUN apk -U upgrade \
  && cd /mastodon \
  && rm -rf /tmp/* /var/cache/apk/*
 
+RUN gem update --system \
+ && gem install bundler -v 2.2.28 -N
+
 COPY Gemfile Gemfile.lock package.json yarn.lock .yarnclean /mastodon/
 
 RUN bundle config build.nokogiri --with-iconv-lib=/usr/local/lib --with-iconv-include=/usr/local/include \
- && bundle install -j$(getconf _NPROCESSORS_ONLN) --deployment --without test development \
- && yarn install --pure-lockfile --ignore-engines \
+ && bundle install -j$(getconf _NPROCESSORS_ONLN) --deployment --without test development --no-cache
+RUN yarn install --pure-lockfile --ignore-engines \
  && yarn cache clean
 
 RUN addgroup -g ${GID} mastodon && adduser -h /mastodon -s /bin/sh -D -G mastodon -u ${UID} mastodon \
