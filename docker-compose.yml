@@ -81,7 +81,7 @@ services:
     image: ghcr.io/hinaloe/mastodon:250-p01
     restart: always
     env_file: .env.production
-    command: bundle exec sidekiq -c 5 -q default -q push -q mailers -q pull
+    command: /usr/local/bin/bundle exec sidekiq -c 5 -q default -q push -q mailers -q pull
     depends_on:
       - db
       - redis
