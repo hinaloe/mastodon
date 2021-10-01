@@ -62,8 +62,8 @@ RUN apk -U upgrade \
  && cd /mastodon \
  && rm -rf /tmp/* /var/cache/apk/*
 
-# RUN gem update --system
-RUN gem install bundler -v 2.2.28 -N
+RUN gem update --system \
+ && gem install bundler -v 2.2.28 -N
 
 COPY Gemfile Gemfile.lock package.json yarn.lock .yarnclean /mastodon/
 
