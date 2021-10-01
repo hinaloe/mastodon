@@ -1,0 +1,132 @@
+name: Docker
+
+on:
+  push:
+    # Publish `master` as Docker `latest` image.
+    branches:
+      # - master
+      - run/*
+      - ext/* 
+
+    # Publish `v1.2.3` tags as releases.
+    # tags:
+    #   - v*
+
+  # Run tests for any PRs.
+  pull_request:
+
+env:
+  # TODO: Change variable to your image's name.
+  IMAGE_NAME: mastodon
+
+jobs:
+  # Run tests.
+  # See also https://docs.docker.com/docker-hub/builds/automated-testing/
+  # test:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - uses: actions/checkout@v1
+
+  #     - name: Run tests
+  #       run: |
+  #         if [ -f docker-compose.test.yml ]; then
+  #           docker-compose --file docker-compose.test.yml build
+  #           docker-compose --file docker-compose.test.yml run sut
+  #         else
+  #           docker build . --file Dockerfile
+  #         fi
+  # # Push image to GitHub Package Registry.
+  # # See also https://docs.docker.com/docker-hub/builds/
+  push:
+    # # Ensure test job passes before pushing image.
+    # needs: test
+
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CR_PAT }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # - name: Pull base image
+      #   continue-on-error: true
+      #   run: |
+      #     docker pull ubuntu:20.04
+      #     IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+      #     docker pull $IMAGE_ID:build_dep
+
+      - name: Build deps image
+        # uses: docker/build-push-action@v2
+        # with:
+        #   target: build-dep
+        #   tags: dep-image
+        #   cache-from: type=local,src=/tmp/.buildx-cache
+        #   cache-to: type=local,dest=/tmp/.buildx-cache
+      #  run: |
+      #     # CACHE=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME:build_dep
+      #     # echo using CACHE=$CACHE
+      #     docker build . --file Dockerfile --target build-dep --tag dep-image --cache-from $CACHE
+        run: |    
+          docker buildx build . --file Dockerfile --target build-dep --tag dep-image --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache
+
+      - name: Build image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "master" ] && VERSION=latest
+          # 
+          [ "$VERSION" == "nyan" ] && VERSION="latest-nyan"
+          [ "$VERSION" == "mdn-hinanet" ] && VERSION="latest-mdn_hinanet"
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          docker buildx build . --file Dockerfile --tag $IMAGE_ID:$VERSION --cache-from type=local,src=/tmp/.buildx-cache --push --cache-to type=local,dest=/tmp/.buildx-cache
+        # uses: docker/build-push-action@v2
+        # with:
+        #   tags: image
+        #   cache-from: type=local,src=/tmp/.buildx-cache
+        #   cache-to: type=local,dest=/tmp/.buildx-cache
+
+      # - name: Push image
+      #   run: |
+      #     IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+      #     # Strip git ref prefix from version
+      #     VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+      #     # Strip "v" prefix from tag name
+      #     [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+      #     # Use Docker `latest` tag convention
+      #     [ "$VERSION" == "master" ] && VERSION=latest
+      #     # 
+      #     [ "$VERSION" == "nyan" ] && VERSION="latest-nyan"
+      #     [ "$VERSION" == "mdn-hinanet" ] && VERSION="latest-mdn_hinanet"
+      #     echo IMAGE_ID=$IMAGE_ID
+      #     echo VERSION=$VERSION
+      #     docker tag image $IMAGE_ID:$VERSION
+      #     docker push $IMAGE_ID:$VERSION
+      # - name: Push deps image
+      #   run: |
+      #     IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+      #     echo IMAGE_ID=$IMAGE_ID
+      #     echo VERSION=build_dep
+      #     docker tag dep-image $IMAGE_ID:build_dep
+      #     docker push $IMAGE_ID:build_dep
