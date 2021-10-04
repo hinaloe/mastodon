@@ -38,7 +38,6 @@ class Api::V1::StatusesController < Api::BaseController
     @status = PostStatusService.new.call(current_user.account,
                                          text: status_params[:status],
                                          thread: @thread,
-                                         status_params[:in_reply_to_id].blank? ? nil : Status.find(status_params[:in_reply_to_id]),
                                          media_ids: status_params[:media_ids],
                                          sensitive: status_params[:sensitive],
                                          spoiler_text: status_params[:spoiler_text],
