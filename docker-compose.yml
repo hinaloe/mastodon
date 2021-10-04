@@ -45,7 +45,7 @@ services:
 
   web:
     # build: .
-    image: ghcr.io/hinaloe/mastodon:latest-nyan
+    image: ghcr.io/hinaloe/mastodon:latest-mdn_hinanet
     restart: always
     env_file: .env.production
     command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p 3000"
@@ -72,7 +72,7 @@ services:
 
   streaming:
     # build: .
-    image: ghcr.io/hinaloe/mastodon:latest-nyan
+    image: ghcr.io/hinaloe/mastodon:latest-mdn_hinanet
     restart: always
     env_file: .env.production
     command: node ./streaming
@@ -95,7 +95,7 @@ services:
 
   sidekiq:
     # build: .
-    image: ghcr.io/hinaloe/mastodon:latest-nyan
+    image: ghcr.io/hinaloe/mastodon:latest-mdn_hinanet
     restart: always
     env_file: .env.production
     command: bundle exec sidekiq -c 5 -q default -q push -q mailers -q pull
