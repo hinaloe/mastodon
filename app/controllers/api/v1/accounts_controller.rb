@@ -1,25 +1,37 @@
 # frozen_string_literal: true
 
 class Api::V1::AccountsController < Api::BaseController
-  before_action -> { authorize_if_got_token! :read, :'read:accounts' }, except: [:follow, :unfollow, :block, :unblock, :mute, :unmute]
+  before_action -> { authorize_if_got_token! :read, :'read:accounts' }, except: [:create, :follow, :unfollow, :block, :unblock, :mute, :unmute]
   before_action -> { doorkeeper_authorize! :follow, :'write:follows' }, only: [:follow, :unfollow]
   before_action -> { doorkeeper_authorize! :follow, :'write:mutes' }, only: [:mute, :unmute]
   before_action -> { doorkeeper_authorize! :follow, :'write:blocks' }, only: [:block, :unblock]
+  before_action -> { doorkeeper_authorize! :write, :'write:accounts' }, only: [:create]
 
-  before_action :require_user!, except: [:show]
-  before_action :set_account
-  before_action :check_account_suspension, only: [:show]
+  before_action :require_user!, except: [:show, :create]
+  before_action :set_account, except: [:create]
+  before_action :check_enabled_registrations, only: [:create]
 
-  respond_to :json
+  skip_before_action :require_authenticated_user!, only: :create
+
+  override_rate_limit_headers :follow, family: :follows
 
   def show
     render json: @account, serializer: REST::AccountSerializer
   end
 
-  def follow
-    FollowService.new.call(current_user.account, @account.acct, reblogs: truthy_param?(:reblogs))
+  def create
+    token    = AppSignUpService.new.call(doorkeeper_token.application, request.remote_ip, account_params)
+    response = Doorkeeper::OAuth::TokenResponse.new(token)
 
-    options = @account.locked? ? {} : { following_map: { @account.id => { reblogs: truthy_param?(:reblogs) } }, requested_map: { @account.id => false } }
+    headers.merge!(response.headers)
+
+    self.response_body = Oj.dump(response.body)
+    self.status        = response.status
+  end
+
+  def follow
+    follow  = FollowService.new.call(current_user.account, @account, reblogs: params.key?(:reblogs) ? truthy_param?(:reblogs) : nil, notify: params.key?(:notify) ? truthy_param?(:notify) : nil, with_rate_limit: true)
+    options = @account.locked? || current_user.account.silenced? ? {} : { following_map: { @account.id => { reblogs: follow.show_reblogs?, notify: follow.notify? } }, requested_map: { @account.id => false } }
 
     render json: @account, serializer: REST::RelationshipSerializer, relationships: relationships(options)
   end
@@ -30,7 +42,7 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   def mute
-    MuteService.new.call(current_user.account, @account, notifications: truthy_param?(:notifications))
+    MuteService.new.call(current_user.account, @account, notifications: truthy_param?(:notifications), duration: (params[:duration]&.to_i || 0))
     render json: @account, serializer: REST::RelationshipSerializer, relationships: relationships
   end
 
@@ -59,7 +71,15 @@ class Api::V1::AccountsController < Api::BaseController
     AccountRelationshipsPresenter.new([@account.id], current_user.account_id, options)
   end
 
-  def check_account_suspension
-    gone if @account.suspended?
+  def account_params
+    params.permit(:username, :email, :password, :agreement, :locale, :reason)
+  end
+
+  def check_enabled_registrations
+    forbidden if single_user_mode? || !allowed_registrations?
+  end
+
+  def allowed_registrations?
+    Setting.registrations_mode != 'none'
   end
 end

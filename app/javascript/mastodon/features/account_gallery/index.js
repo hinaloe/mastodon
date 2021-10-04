@@ -2,22 +2,28 @@ import React from 'react';
 import { connect } from 'react-redux';
 import ImmutablePropTypes from 'react-immutable-proptypes';
 import PropTypes from 'prop-types';
-import { fetchAccount } from '../../actions/accounts';
+import { fetchAccount } from 'mastodon/actions/accounts';
 import { expandAccountMediaTimeline } from '../../actions/timelines';
-import LoadingIndicator from '../../components/loading_indicator';
+import LoadingIndicator from 'mastodon/components/loading_indicator';
 import Column from '../ui/components/column';
-import ColumnBackButton from '../../components/column_back_button';
+import ColumnBackButton from 'mastodon/components/column_back_button';
 import ImmutablePureComponent from 'react-immutable-pure-component';
-import { getAccountGallery } from '../../selectors';
+import { getAccountGallery } from 'mastodon/selectors';
 import MediaItem from './components/media_item';
 import HeaderContainer from '../account_timeline/containers/header_container';
 import { ScrollContainer } from 'react-router-scroll-4';
-import LoadMore from '../../components/load_more';
+import LoadMore from 'mastodon/components/load_more';
+import MissingIndicator from 'mastodon/components/missing_indicator';
+import { openModal } from 'mastodon/actions/modal';
+import { FormattedMessage } from 'react-intl';
 
 const mapStateToProps = (state, props) => ({
-  medias: getAccountGallery(state, props.params.accountId),
+  isAccount: !!state.getIn(['accounts', props.params.accountId]),
+  attachments: getAccountGallery(state, props.params.accountId),
   isLoading: state.getIn(['timelines', `account:${props.params.accountId}:media`, 'isLoading']),
-  hasMore:   state.getIn(['timelines', `account:${props.params.accountId}:media`, 'hasMore']),
+  hasMore: state.getIn(['timelines', `account:${props.params.accountId}:media`, 'hasMore']),
+  suspended: state.getIn(['accounts', props.params.accountId, 'suspended'], false),
+  blockedBy: state.getIn(['relationships', props.params.accountId, 'blocked_by'], false),
 });
 
 class LoadMoreMedia extends ImmutablePureComponent {
@@ -36,22 +42,30 @@ class LoadMoreMedia extends ImmutablePureComponent {
     return (
       <LoadMore
         disabled={this.props.disabled}
-        onLoadMore={this.handleLoadMore}
+        onClick={this.handleLoadMore}
       />
     );
   }
 
 }
 
-@connect(mapStateToProps)
-export default class AccountGallery extends ImmutablePureComponent {
+export default @connect(mapStateToProps)
+class AccountGallery extends ImmutablePureComponent {
 
   static propTypes = {
     params: PropTypes.object.isRequired,
     dispatch: PropTypes.func.isRequired,
-    medias: ImmutablePropTypes.list.isRequired,
+    attachments: ImmutablePropTypes.list.isRequired,
     isLoading: PropTypes.bool,
     hasMore: PropTypes.bool,
+    isAccount: PropTypes.bool,
+    blockedBy: PropTypes.bool,
+    suspended: PropTypes.bool,
+    multiColumn: PropTypes.bool,
+  };
+
+  state = {
+    width: 323,
   };
 
   componentDidMount () {
@@ -68,11 +82,11 @@ export default class AccountGallery extends ImmutablePureComponent {
 
   handleScrollToBottom = () => {
     if (this.props.hasMore) {
-      this.handleLoadMore(this.props.medias.last().getIn(['status', 'id']));
+      this.handleLoadMore(this.props.attachments.size > 0 ? this.props.attachments.last().getIn(['status', 'id']) : undefined);
     }
   }
 
-  handleScroll = (e) => {
+  handleScroll = e => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
     const offset = scrollHeight - scrollTop - clientHeight;
 
@@ -85,17 +99,46 @@ export default class AccountGallery extends ImmutablePureComponent {
     this.props.dispatch(expandAccountMediaTimeline(this.props.params.accountId, { maxId }));
   };
 
-  handleLoadOlder = (e) => {
+  handleLoadOlder = e => {
     e.preventDefault();
     this.handleScrollToBottom();
   }
 
+  handleOpenMedia = attachment => {
+    const { dispatch } = this.props;
+    const statusId = attachment.getIn(['status', 'id']);
+
+    if (attachment.get('type') === 'video') {
+      dispatch(openModal('VIDEO', { media: attachment, statusId, options: { autoPlay: true } }));
+    } else if (attachment.get('type') === 'audio') {
+      dispatch(openModal('AUDIO', { media: attachment, statusId, options: { autoPlay: true } }));
+    } else {
+      const media = attachment.getIn(['status', 'media_attachments']);
+      const index = media.findIndex(x => x.get('id') === attachment.get('id'));
+
+      dispatch(openModal('MEDIA', { media, index, statusId }));
+    }
+  }
+
+  handleRef = c => {
+    if (c) {
+      this.setState({ width: c.offsetWidth });
+    }
+  }
+
   render () {
-    const { medias, shouldUpdateScroll, isLoading, hasMore } = this.props;
+    const { attachments, shouldUpdateScroll, isLoading, hasMore, isAccount, multiColumn, blockedBy, suspended } = this.props;
+    const { width } = this.state;
 
-    let loadOlder = null;
+    if (!isAccount) {
+      return (
+        <Column>
+          <MissingIndicator />
+        </Column>
+      );
+    }
 
-    if (!medias && isLoading) {
+    if (!attachments && isLoading) {
       return (
         <Column>
           <LoadingIndicator />
@@ -103,32 +146,49 @@ export default class AccountGallery extends ImmutablePureComponent {
       );
     }
 
-    if (!isLoading && medias.size > 0 && hasMore) {
-      loadOlder = <LoadMore onClick={this.handleLoadOlder} />;
+    let loadOlder = null;
+
+    if (hasMore && !(isLoading && attachments.size === 0)) {
+      loadOlder = <LoadMore visible={!isLoading} onClick={this.handleLoadOlder} />;
+    }
+
+    let emptyMessage;
+
+    if (suspended) {
+      emptyMessage = <FormattedMessage id='empty_column.account_suspended' defaultMessage='Account suspended' />;
+    } else if (blockedBy) {
+      emptyMessage = <FormattedMessage id='empty_column.account_unavailable' defaultMessage='Profile unavailable' />;
     }
 
     return (
       <Column>
-        <ColumnBackButton />
+        <ColumnBackButton multiColumn={multiColumn} />
 
         <ScrollContainer scrollKey='account_gallery' shouldUpdateScroll={shouldUpdateScroll}>
-          <div className='scrollable' onScroll={this.handleScroll}>
+          <div className='scrollable scrollable--flex' onScroll={this.handleScroll}>
             <HeaderContainer accountId={this.props.params.accountId} />
 
-            <div className='account-gallery__container'>
-              {medias.map((media, index) => media === null ? (
-                <LoadMoreMedia
-                  key={'more:' + medias.getIn(index + 1, 'id')}
-                  maxId={index > 0 ? medias.getIn(index - 1, 'id') : null}
-                />
-              ) : (
-                <MediaItem
-                  key={media.get('id')}
-                  media={media}
-                />
-              ))}
-              {loadOlder}
-            </div>
+            {(suspended || blockedBy) ? (
+              <div className='empty-column-indicator'>
+                {emptyMessage}
+              </div>
+            ) : (
+              <div role='feed' className='account-gallery__container' ref={this.handleRef}>
+                {attachments.map((attachment, index) => attachment === null ? (
+                  <LoadMoreMedia key={'more:' + attachments.getIn(index + 1, 'id')} maxId={index > 0 ? attachments.getIn(index - 1, 'id') : null} onLoadMore={this.handleLoadMore} />
+                ) : (
+                  <MediaItem key={attachment.get('id')} attachment={attachment} displayWidth={width} onOpenMedia={this.handleOpenMedia} />
+                ))}
+
+                {loadOlder}
+              </div>
+            )}
+
+            {isLoading && attachments.size === 0 && (
+              <div className='scrollable__append'>
+                <LoadingIndicator />
+              </div>
+            )}
           </div>
         </ScrollContainer>
       </Column>

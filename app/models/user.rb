@@ -36,11 +36,17 @@
 #  invite_id                 :bigint(8)
 #  remember_token            :string
 #  chosen_languages          :string           is an Array
+#  created_by_application_id :bigint(8)
+#  approved                  :boolean          default(TRUE), not null
+#  sign_in_token             :string
+#  sign_in_token_sent_at     :datetime
+#  webauthn_id               :string
+#  sign_up_ip                :inet
 #
 
 class User < ApplicationRecord
   include Settings::Extend
-  include Omniauthable
+  include UserRoles
 
   # The home and list feeds will be stored in Redis for this amount
   # of time, and status fan-out to followers will include only people
@@ -49,7 +55,7 @@ class User < ApplicationRecord
   # every day. Raising the duration reduces the amount of expensive
   # RegenerationWorker jobs that need to be run when those people come
   # to check their feed
-  ACTIVE_DURATION = ENV.fetch('USER_ACTIVE_DAYS', 7).to_i.days
+  ACTIVE_DURATION = ENV.fetch('USER_ACTIVE_DAYS', 7).to_i.days.freeze
 
   devise :two_factor_authenticatable,
          otp_secret_encryption_key: Rails.configuration.x.otp_secret
@@ -57,35 +63,55 @@ class User < ApplicationRecord
   devise :two_factor_backupable,
          otp_number_of_backup_codes: 10
 
-  devise :registerable, :recoverable, :rememberable, :trackable, :validatable,
+  devise :registerable, :recoverable, :rememberable, :validatable,
          :confirmable
 
-  devise :pam_authenticatable if ENV['PAM_ENABLED'] == 'true'
-
-  devise :omniauthable
+  include Omniauthable
+  include PamAuthenticable
+  include LdapAuthenticable
 
   belongs_to :account, inverse_of: :user
   belongs_to :invite, counter_cache: :uses, optional: true
+  belongs_to :created_by_application, class_name: 'Doorkeeper::Application', optional: true
   accepts_nested_attributes_for :account
 
   has_many :applications, class_name: 'Doorkeeper::Application', as: :owner
   has_many :backups, inverse_of: :user
+  has_many :invites, inverse_of: :user
+  has_many :markers, inverse_of: :user, dependent: :destroy
+  has_many :webauthn_credentials, dependent: :destroy
+
+  has_one :invite_request, class_name: 'UserInviteRequest', inverse_of: :user, dependent: :destroy
+  accepts_nested_attributes_for :invite_request, reject_if: ->(attributes) { attributes['text'].blank? && !Setting.require_invite_text }
+  validates :invite_request, presence: true, on: :create, if: :invite_text_required?
 
   validates :locale, inclusion: I18n.available_locales.map(&:to_s), if: :locale?
-  validates_with BlacklistedEmailValidator, if: :email_changed?
-  validates_with EmailMxValidator, if: :email_changed?
+  validates_with BlacklistedEmailValidator, on: :create
+  validates_with EmailMxValidator, if: :validate_email_dns?
+  validates :agreement, acceptance: { allow_nil: false, accept: [true, 'true', '1'] }, on: :create
+
+  # Those are honeypot/antispam fields
+  attr_accessor :registration_form_time, :website, :confirm_password
+
+  validates_with RegistrationFormTimeValidator, on: :create
+  validates :website, absence: true, on: :create
+  validates :confirm_password, absence: true, on: :create
 
   scope :recent, -> { order(id: :desc) }
-  scope :admins, -> { where(admin: true) }
-  scope :moderators, -> { where(moderator: true) }
-  scope :staff, -> { admins.or(moderators) }
+  scope :pending, -> { where(approved: false) }
+  scope :approved, -> { where(approved: true) }
   scope :confirmed, -> { where.not(confirmed_at: nil) }
+  scope :enabled, -> { where(disabled: false) }
+  scope :disabled, -> { where(disabled: true) }
   scope :inactive, -> { where(arel_table[:current_sign_in_at].lt(ACTIVE_DURATION.ago)) }
-  scope :active, -> { confirmed.where(arel_table[:current_sign_in_at].gteq(ACTIVE_DURATION.ago)).joins(:account).where(accounts: { suspended: false }) }
+  scope :active, -> { confirmed.where(arel_table[:current_sign_in_at].gteq(ACTIVE_DURATION.ago)).joins(:account).where(accounts: { suspended_at: nil }) }
   scope :matches_email, ->(value) { where(arel_table[:email].matches("#{value}%")) }
-  scope :with_recent_ip_address, ->(value) { where(arel_table[:current_sign_in_ip].eq(value).or(arel_table[:last_sign_in_ip].eq(value))) }
+  scope :matches_ip, ->(value) { left_joins(:session_activations).where('users.current_sign_in_ip <<= ?', value).or(left_joins(:session_activations).where('users.sign_up_ip <<= ?', value)).or(left_joins(:session_activations).where('users.last_sign_in_ip <<= ?', value)).or(left_joins(:session_activations).where('session_activations.ip <<= ?', value)) }
+  scope :emailable, -> { confirmed.enabled.joins(:account).merge(Account.searchable) }
 
   before_validation :sanitize_languages
+  before_create :set_approved
+  after_commit :send_pending_devise_notifications
 
   # This avoids a deprecation warning from Rails 5.1
   # It seems possible that a future release of devise-two-factor will
@@ -95,79 +121,29 @@ class User < ApplicationRecord
   has_many :session_activations, dependent: :destroy
 
   delegate :auto_play_gif, :default_sensitive, :unfollow_modal, :boost_modal, :delete_modal,
-           :reduce_motion, :system_font_ui, :noindex, :theme, :display_sensitive_media, :hide_network,
-           :default_language, to: :settings, prefix: :setting, allow_nil: false
+           :reduce_motion, :system_font_ui, :noindex, :theme, :display_media, :hide_network,
+           :expand_spoilers, :default_language, :aggregate_reblogs, :show_application,
+           :advanced_layout, :use_blurhash, :use_pending_items, :trends, :crop_images,
+           :disable_swiping,
+           to: :settings, prefix: :setting, allow_nil: false
 
-  attr_reader :invite_code
-
-  def pam_conflict(_)
-    # block pam login tries on traditional account
-    nil
-  end
-
-  def pam_conflict?
-    return false unless Devise.pam_authentication
-    encrypted_password.present? && pam_managed_user?
-  end
-
-  def pam_get_name
-    return account.username if account.present?
-    super
-  end
-
-  def pam_setup(_attributes)
-    acc = Account.new(username: pam_get_name)
-    acc.save!(validate: false)
-
-    self.email = "#{acc.username}@#{find_pam_suffix}" if email.nil? && find_pam_suffix
-    self.confirmed_at = Time.now.utc
-    self.admin = false
-    self.account = acc
-
-    acc.destroy! unless save
-  end
-
-  def ldap_setup(_attributes)
-    self.confirmed_at = Time.now.utc
-    self.admin = false
-    save!
-  end
+  attr_reader :invite_code, :sign_in_token_attempt
+  attr_writer :external, :bypass_invite_request_check
 
   def confirmed?
     confirmed_at.present?
   end
 
-  def staff?
-    admin? || moderator?
+  def invited?
+    invite_id.present?
   end
 
-  def role
-    if admin?
-      'admin'
-    elsif moderator?
-      'moderator'
-    else
-      'user'
-    end
-  end
-
-  def role?(role)
-    case role
-    when 'user'
-      true
-    when 'moderator'
-      staff?
-    when 'admin'
-      admin?
-    else
-      false
-    end
+  def valid_invitation?
+    invite_id.present? && invite.valid_for_use?
   end
 
   def disable!
-    update!(disabled: true,
-            last_sign_in_at: current_sign_in_at,
-            current_sign_in_at: nil)
+    update!(disabled: true)
   end
 
   def enable!
@@ -175,44 +151,96 @@ class User < ApplicationRecord
   end
 
   def confirm
-    new_user = !confirmed?
+    new_user      = !confirmed?
+    self.approved = true if open_registrations?
 
     super
-    prepare_new_user! if new_user
+
+    if new_user && approved?
+      prepare_new_user!
+    elsif new_user
+      notify_staff_about_pending_account!
+    end
   end
 
   def confirm!
-    new_user = !confirmed?
+    new_user      = !confirmed?
+    self.approved = true if open_registrations?
 
     skip_confirmation!
     save!
-    prepare_new_user! if new_user
+
+    prepare_new_user! if new_user && approved?
   end
 
-  def update_tracked_fields!(request)
-    super
+  def update_sign_in!(request, new_sign_in: false)
+    old_current, new_current = current_sign_in_at, Time.now.utc
+    self.last_sign_in_at     = old_current || new_current
+    self.current_sign_in_at  = new_current
+
+    old_current, new_current = current_sign_in_ip, request.remote_ip
+    self.last_sign_in_ip     = old_current || new_current
+    self.current_sign_in_ip  = new_current
+
+    if new_sign_in
+      self.sign_in_count ||= 0
+      self.sign_in_count  += 1
+    end
+
+    save(validate: false) unless new_record?
     prepare_returning_user!
   end
 
-  def promote!
-    if moderator?
-      update!(moderator: false, admin: true)
-    elsif !admin?
-      update!(moderator: true)
-    end
+  def pending?
+    !approved?
   end
 
-  def demote!
-    if admin?
-      update!(admin: false, moderator: true)
-    elsif moderator?
-      update!(moderator: false)
-    end
+  def active_for_authentication?
+    !account.memorial?
+  end
+
+  def suspicious_sign_in?(ip)
+    !otp_required_for_login? && current_sign_in_at.present? && current_sign_in_at < 2.weeks.ago && !recent_ip?(ip)
+  end
+
+  def functional?
+    confirmed? && approved? && !disabled? && !account.suspended? && !account.memorial? && account.moved_to_account_id.nil?
+  end
+
+  def unconfirmed_or_pending?
+    !(confirmed? && approved?)
+  end
+
+  def inactive_message
+    !approved? ? :pending : super
+  end
+
+  def approve!
+    return if approved?
+
+    update!(approved: true)
+    prepare_new_user!
+  end
+
+  def otp_enabled?
+    otp_required_for_login
+  end
+
+  def webauthn_enabled?
+    webauthn_credentials.any?
+  end
+
+  def two_factor_enabled?
+    otp_required_for_login? || webauthn_credentials.any?
   end
 
   def disable_two_factor!
     self.otp_required_for_login = false
+    self.otp_secret = nil
     otp_backup_codes&.clear
+
+    webauthn_credentials.destroy_all if webauthn_enabled?
+
     save!
   end
 
@@ -228,20 +256,36 @@ class User < ApplicationRecord
     settings.notification_emails['report']
   end
 
+  def allows_pending_account_emails?
+    settings.notification_emails['pending_account']
+  end
+
+  def allows_trending_tag_emails?
+    settings.notification_emails['trending_tag']
+  end
+
   def hides_network?
     @hides_network ||= settings.hide_network
   end
 
+  def aggregates_reblogs?
+    @aggregates_reblogs ||= settings.aggregate_reblogs
+  end
+
+  def shows_application?
+    @shows_application ||= settings.show_application
+  end
+
+  # rubocop:disable Naming/MethodParameterName
   def token_for_app(a)
     return nil if a.nil? || a.owner != self
-    Doorkeeper::AccessToken
-      .find_or_create_by(application_id: a.id, resource_owner_id: id) do |t|
-
+    Doorkeeper::AccessToken.find_or_create_by(application_id: a.id, resource_owner_id: id) do |t|
       t.scopes = a.scopes
       t.expires_in = Doorkeeper.configuration.access_token_expires_in
       t.use_refresh_token = Doorkeeper.configuration.refresh_token_enabled?
     end
   end
+  # rubocop:enable Naming/MethodParameterName
 
   def activate_session(request)
     session_activations.activate(session_id: SecureRandom.hex,
@@ -249,7 +293,7 @@ class User < ApplicationRecord
                                  ip: request.remote_ip).session_id
   end
 
-  def exclusive_session(id)
+  def clear_other_sessions(id)
     session_activations.exclusive(id)
   end
 
@@ -267,62 +311,127 @@ class User < ApplicationRecord
   end
 
   def password_required?
-    return false if Devise.pam_authentication || Devise.ldap_authentication
+    return false if external?
+
     super
   end
 
+  def external_or_valid_password?(compare_password)
+    # If encrypted_password is blank, we got the user from LDAP or PAM,
+    # so credentials are already valid
+
+    encrypted_password.blank? || valid_password?(compare_password)
+  end
+
   def send_reset_password_instructions
-    return false if encrypted_password.blank? && (Devise.pam_authentication || Devise.ldap_authentication)
+    return false if encrypted_password.blank?
+
     super
   end
 
   def reset_password!(new_password, new_password_confirmation)
-    return false if encrypted_password.blank? && (Devise.pam_authentication || Devise.ldap_authentication)
+    return false if encrypted_password.blank?
+
     super
   end
 
-  def self.pam_get_user(attributes = {})
-    return nil unless attributes[:email]
-    resource =
-      if Devise.check_at_sign && !attributes[:email].index('@')
-        joins(:account).find_by(accounts: { username: attributes[:email] })
-      else
-        find_by(email: attributes[:email])
-      end
-
-    if resource.blank?
-      resource = new(email: attributes[:email])
-      if Devise.check_at_sign && !resource[:email].index('@')
-        resource[:email] = Rpam2.getenv(resource.find_pam_service, attributes[:email], attributes[:password], 'email', false)
-        resource[:email] = "#{attributes[:email]}@#{resource.find_pam_suffix}" unless resource[:email]
-      end
-    end
-    resource
+  def show_all_media?
+    setting_display_media == 'show_all'
   end
 
-  def self.ldap_get_user(attributes = {})
-    resource = joins(:account).find_by(accounts: { username: attributes[Devise.ldap_uid.to_sym].first })
-
-    if resource.blank?
-      resource = new(email: attributes[:mail].first, account_attributes: { username: attributes[Devise.ldap_uid.to_sym].first })
-      resource.ldap_setup(attributes)
-    end
-
-    resource
+  def hide_all_media?
+    setting_display_media == 'hide_all'
   end
 
-  def self.authenticate_with_pam(attributes = {})
-    return nil unless Devise.pam_authentication
-    super
+  def recent_ips
+    @recent_ips ||= begin
+      arr = []
+
+      session_activations.each do |session_activation|
+        arr << [session_activation.updated_at, session_activation.ip]
+      end
+
+      arr << [current_sign_in_at, current_sign_in_ip] if current_sign_in_ip.present?
+      arr << [last_sign_in_at, last_sign_in_ip] if last_sign_in_ip.present?
+      arr << [created_at, sign_up_ip] if sign_up_ip.present?
+
+      arr.sort_by { |pair| pair.first || Time.now.utc }.uniq(&:last).reverse!
+    end
+  end
+
+  def sign_in_token_expired?
+    sign_in_token_sent_at.nil? || sign_in_token_sent_at < 5.minutes.ago
+  end
+
+  def generate_sign_in_token
+    self.sign_in_token         = Devise.friendly_token(6)
+    self.sign_in_token_sent_at = Time.now.utc
   end
 
   protected
 
   def send_devise_notification(notification, *args)
-    devise_mailer.send(notification, self, *args).deliver_later
+    # This method can be called in `after_update` and `after_commit` hooks,
+    # but we must make sure the mailer is actually called *after* commit,
+    # otherwise it may work on stale data. To do this, figure out if we are
+    # within a transaction.
+    if ActiveRecord::Base.connection.current_transaction.try(:records)&.include?(self)
+      pending_devise_notifications << [notification, args]
+    else
+      render_and_send_devise_message(notification, *args)
+    end
   end
 
   private
+
+  def recent_ip?(ip)
+    recent_ips.any? { |(_, recent_ip)| recent_ip == ip }
+  end
+
+  def send_pending_devise_notifications
+    pending_devise_notifications.each do |notification, args|
+      render_and_send_devise_message(notification, *args)
+    end
+
+    # Empty the pending notifications array because the
+    # after_commit hook can be called multiple times which
+    # could cause multiple emails to be sent.
+    pending_devise_notifications.clear
+  end
+
+  def pending_devise_notifications
+    @pending_devise_notifications ||= []
+  end
+
+  def render_and_send_devise_message(notification, *args)
+    devise_mailer.send(notification, self, *args).deliver_later
+  end
+
+  def set_approved
+    self.approved = begin
+      if sign_up_from_ip_requires_approval?
+        false
+      else
+        open_registrations? || valid_invitation? || external?
+      end
+    end
+  end
+
+  def sign_up_from_ip_requires_approval?
+    !sign_up_ip.nil? && IpBlock.where(severity: :sign_up_requires_approval).where('ip >>= ?', sign_up_ip.to_s).exists?
+  end
+
+  def open_registrations?
+    Setting.registrations_mode == 'open'
+  end
+
+  def external?
+    !!@external
+  end
+
+  def bypass_invite_request_check?
+    @bypass_invite_request_check
+  end
 
   def sanitize_languages
     return if chosen_languages.nil?
@@ -341,12 +450,28 @@ class User < ApplicationRecord
     regenerate_feed! if needs_feed_update?
   end
 
+  def notify_staff_about_pending_account!
+    User.staff.includes(:account).find_each do |u|
+      next unless u.allows_pending_account_emails?
+      AdminMailer.new_pending_account(u.account, self).deliver_later
+    end
+  end
+
   def regenerate_feed!
-    Redis.current.setnx("account:#{account_id}:regeneration", true) && Redis.current.expire("account:#{account_id}:regeneration", 1.day.seconds)
+    return unless Redis.current.setnx("account:#{account_id}:regeneration", true)
+    Redis.current.expire("account:#{account_id}:regeneration", 1.day.seconds)
     RegenerationWorker.perform_async(account_id)
   end
 
   def needs_feed_update?
     last_sign_in_at < ACTIVE_DURATION.ago
+  end
+
+  def validate_email_dns?
+    email_changed? && !(Rails.env.test? || Rails.env.development?)
+  end
+
+  def invite_text_required?
+    Setting.require_invite_text && !invited? && !external? && !bypass_invite_request_check?
   end
 end

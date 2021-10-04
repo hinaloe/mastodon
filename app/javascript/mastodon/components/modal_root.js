@@ -1,18 +1,21 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import 'wicg-inert';
+import { multiply } from 'color-blend';
 
 export default class ModalRoot extends React.PureComponent {
 
   static propTypes = {
     children: PropTypes.node,
     onClose: PropTypes.func.isRequired,
+    backgroundColor: PropTypes.shape({
+      r: PropTypes.number,
+      g: PropTypes.number,
+      b: PropTypes.number,
+    }),
   };
 
-  state = {
-    revealed: !!this.props.children,
-  };
-
-  activeElement = this.state.revealed ? document.activeElement : null;
+  activeElement = this.props.children ? document.activeElement : null;
 
   handleKeyUp = (e) => {
     if ((e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27)
@@ -21,8 +24,30 @@ export default class ModalRoot extends React.PureComponent {
     }
   }
 
+  handleKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      const focusable = Array.from(this.node.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter((x) => window.getComputedStyle(x).display !== 'none');
+      const index = focusable.indexOf(e.target);
+
+      let element;
+
+      if (e.shiftKey) {
+        element = focusable[index - 1] || focusable[focusable.length - 1];
+      } else {
+        element = focusable[index + 1] || focusable[0];
+      }
+
+      if (element) {
+        element.focus();
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }
+  }
+
   componentDidMount () {
     window.addEventListener('keyup', this.handleKeyUp, false);
+    window.addEventListener('keydown', this.handleKeyDown, false);
   }
 
   componentWillReceiveProps (nextProps) {
@@ -30,26 +55,26 @@ export default class ModalRoot extends React.PureComponent {
       this.activeElement = document.activeElement;
 
       this.getSiblings().forEach(sibling => sibling.setAttribute('inert', true));
-    } else if (!nextProps.children) {
-      this.setState({ revealed: false });
     }
   }
 
   componentDidUpdate (prevProps) {
     if (!this.props.children && !!prevProps.children) {
       this.getSiblings().forEach(sibling => sibling.removeAttribute('inert'));
-      this.activeElement.focus();
-      this.activeElement = null;
-    }
-    if (this.props.children) {
-      requestAnimationFrame(() => {
-        this.setState({ revealed: true });
-      });
+
+      // Because of the wicg-inert polyfill, the activeElement may not be
+      // immediately selectable, we have to wait for observers to run, as
+      // described in https://github.com/WICG/inert#performance-and-gotchas
+      Promise.resolve().then(() => {
+        this.activeElement.focus({ preventScroll: true });
+        this.activeElement = null;
+      }).catch(console.error);
     }
   }
 
   componentWillUnmount () {
     window.removeEventListener('keyup', this.handleKeyUp);
+    window.removeEventListener('keydown', this.handleKeyDown);
   }
 
   getSiblings = () => {
@@ -62,7 +87,6 @@ export default class ModalRoot extends React.PureComponent {
 
   render () {
     const { children, onClose } = this.props;
-    const { revealed } = this.state;
     const visible = !!children;
 
     if (!visible) {
@@ -71,10 +95,16 @@ export default class ModalRoot extends React.PureComponent {
       );
     }
 
+    let backgroundColor = null;
+
+    if (this.props.backgroundColor) {
+      backgroundColor = multiply({ ...this.props.backgroundColor, a: 1 }, { r: 0, g: 0, b: 0, a: 0.7 });
+    }
+
     return (
-      <div className='modal-root' ref={this.setRef} style={{ opacity: revealed ? 1 : 0 }}>
+      <div className='modal-root' ref={this.setRef}>
         <div style={{ pointerEvents: visible ? 'auto' : 'none' }}>
-          <div role='presentation' className='modal-root__overlay' onClick={onClose} />
+          <div role='presentation' className='modal-root__overlay' onClick={onClose} style={{ backgroundColor: backgroundColor ? `rgba(${backgroundColor.r}, ${backgroundColor.g}, ${backgroundColor.b}, 0.7)` : null }} />
           <div role='dialog' className='modal-root__container'>{children}</div>
         </div>
       </div>

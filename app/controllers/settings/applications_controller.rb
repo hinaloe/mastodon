@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
-class Settings::ApplicationsController < ApplicationController
-  layout 'admin'
-
-  before_action :authenticate_user!
+class Settings::ApplicationsController < Settings::BaseController
   before_action :set_application, only: [:show, :update, :destroy, :regenerate]
   before_action :prepare_scopes, only: [:create, :update]
 

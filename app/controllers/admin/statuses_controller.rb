@@ -14,12 +14,21 @@ module Admin
       @statuses = @account.statuses.where(visibility: [:public, :unlisted])
 
       if params[:media]
-        account_media_status_ids = @account.media_attachments.attached.reorder(nil).select(:status_id).distinct
+        account_media_status_ids = @account.media_attachments.attached.reorder(nil).select(:status_id).group(:status_id)
         @statuses.merge!(Status.where(id: account_media_status_ids))
       end
 
       @statuses = @statuses.preload(:media_attachments, :mentions).page(params[:page]).per(PER_PAGE)
       @form     = Form::StatusBatch.new
+    end
+
+    def show
+      authorize :status, :index?
+
+      @statuses = @account.statuses.where(id: params[:id])
+      authorize @statuses.first, :show?
+
+      @form = Form::StatusBatch.new
     end
 
     def create
