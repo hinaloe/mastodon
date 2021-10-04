@@ -6,7 +6,6 @@ on:
     branches:
       # - master
       - run/*
-      - mdn/upgrade-34x
 
     # Publish `v1.2.3` tags as releases.
     # tags:
