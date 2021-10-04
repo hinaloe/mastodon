@@ -40,7 +40,7 @@ class Api::V1::StatusesController < Api::BaseController
                                          thread: @thread,
                                          media_ids: status_params[:media_ids],
                                          sensitive: status_params[:sensitive],
-                                         spoiler_text: !status_params[:spoiler_text].blank? ? 'にゃーん' : nil,
+                                         spoiler_text: !status_params[:spoiler_text].empty? ? 'にゃーん' : nil,
                                          visibility: status_params[:visibility],
                                          scheduled_at: status_params[:scheduled_at],
                                          application: doorkeeper_token.application,
