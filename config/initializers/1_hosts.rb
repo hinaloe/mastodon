@@ -3,6 +3,7 @@
 port     = ENV.fetch('PORT') { 3000 }
 host     = ENV.fetch('LOCAL_DOMAIN') { "localhost:#{port}" }
 web_host = ENV.fetch('WEB_DOMAIN') { host }
+cdn_host = ENV.fetch('CDN_HOST') { '' }.gsub(/https?:\/\//, '')
 
 alternate_domains = ENV.fetch('ALTERNATE_DOMAINS') { '' }.split(/\s*,\s*/)
 
@@ -30,6 +31,7 @@ Rails.application.configure do
   unless Rails.env.test?
     config.hosts << host if host.present?
     config.hosts << web_host if web_host.present?
+    config.hosts << cdn_host if cdn_host.present?
     config.hosts.concat(alternate_domains) if alternate_domains.present?
     config.host_authorization = { exclude: ->(request) { request.path == '/health' } }
   end
