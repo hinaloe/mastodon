@@ -98,7 +98,7 @@ services:
     image: ghcr.io/hinaloe/mastodon:latest-mdn_hinanet
     restart: always
     env_file: .env.production
-    command: bundle exec sidekiq -c 5 -q default -q push -q mailers -q pull
+    command: bundle exec sidekiq -c 5 -q default -q push -q mailers -q pull -q scheduler
     depends_on:
       - db
       - redis
