@@ -136,7 +136,7 @@ class Status < ApplicationRecord
   def searchable_by(preloaded = nil)
     ids = []
 
-    ids << account_id if local?
+    ids << account_id # if local?
 
     if preloaded.nil?
       ids += mentions.where(account: Account.local, silent: false).pluck(:account_id)

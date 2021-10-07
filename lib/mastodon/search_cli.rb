@@ -108,21 +108,21 @@ module Mastodon
                   index_count  = grouped_records[:index].size  if grouped_records.key?(:index)
                   delete_count = grouped_records[:delete].size if grouped_records.key?(:delete)
 
-                  # The following is an optimization for statuses specifically, since
-                  # we want to de-index statuses that cannot be searched by anybody,
-                  # but can't use Chewy's delete_if logic because it doesn't use
-                  # crutches and our searchable_by logic depends on them
-                  if type == StatusesIndex::Status
-                    bulk_body.map! do |entry|
-                      if entry[:index] && entry.dig(:index, :data, 'searchable_by').blank?
-                        index_count  -= 1
-                        delete_count += 1
+                  # # The following is an optimization for statuses specifically, since
+                  # # we want to de-index statuses that cannot be searched by anybody,
+                  # # but can't use Chewy's delete_if logic because it doesn't use
+                  # # crutches and our searchable_by logic depends on them
+                  # if type == StatusesIndex::Status
+                  #   bulk_body.map! do |entry|
+                  #     if entry[:index] && entry.dig(:index, :data, 'searchable_by').blank?
+                  #       index_count  -= 1
+                  #       delete_count += 1
 
-                        { delete: entry[:index].except(:data) }
-                      else
-                        entry
-                      end
-                    end
+                  #       { delete: entry[:index].except(:data) }
+                  #     else
+                  #       entry
+                  #     end
+                  #   end
                   end
 
                   Chewy::Type::Import::BulkRequest.new(type).perform(bulk_body)
