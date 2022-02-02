@@ -123,7 +123,7 @@ module Mastodon
                   #       entry
                   #     end
                   #   end
-                  # end
+                  end
 
                   Chewy::Type::Import::BulkRequest.new(type).perform(bulk_body)
 
