@@ -56,13 +56,13 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.CR_PAT }}
 
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
+      # - name: Cache Docker layers
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: /tmp/.buildx-cache
+      #     key: ${{ runner.os }}-buildx-${{ github.sha }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-buildx-
 
       # - name: Pull base image
       #   continue-on-error: true
@@ -83,7 +83,7 @@ jobs:
       #     # echo using CACHE=$CACHE
       #     docker build . --file Dockerfile --target build-dep --tag dep-image --cache-from $CACHE
         run: |    
-          docker buildx build . --file Dockerfile --target build-dep --tag dep-image --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache
+          docker buildx build . --file Dockerfile --target build-dep --tag dep-image --cache-from type=gha --cache-to type=gha,mode=max
 
       - name: Build image
         run: |
@@ -99,7 +99,7 @@ jobs:
           [ "$VERSION" == "mdn-hinanet" ] && VERSION="latest-mdn_hinanet"
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
-          docker buildx build . --file Dockerfile --tag $IMAGE_ID:$VERSION --cache-from type=local,src=/tmp/.buildx-cache --push --cache-to type=local,dest=/tmp/.buildx-cache
+          docker buildx build . --file Dockerfile --tag $IMAGE_ID:$VERSION --cache-from type=gha --push --cache-to type=gha,mode=max
         # uses: docker/build-push-action@v2
         # with:
         #   tags: image
