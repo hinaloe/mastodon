@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class Api::V1::Admin::AccountsController < Api::BaseController
-  protect_from_forgery with: :exception
-
   include Authorization
   include AccountableConcern
 
@@ -56,19 +54,22 @@ class Api::V1::Admin::AccountsController < Api::BaseController
   def approve
     authorize @account.user, :approve?
     @account.user.approve!
+    log_action :approve, @account.user
     render json: @account, serializer: REST::Admin::AccountSerializer
   end
 
   def reject
     authorize @account.user, :reject?
     DeleteAccountService.new.call(@account, reserve_email: false, reserve_username: false)
+    log_action :reject, @account.user
     render json: @account, serializer: REST::Admin::AccountSerializer
   end
 
   def destroy
     authorize @account, :destroy?
+    json = render_to_body json: @account, serializer: REST::Admin::AccountSerializer
     Admin::AccountDeletionWorker.perform_async(@account.id)
-    render json: @account, serializer: REST::Admin::AccountSerializer
+    render json: json
   end
 
   def unsensitive

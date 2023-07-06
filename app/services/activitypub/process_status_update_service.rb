@@ -2,8 +2,10 @@
 
 class ActivityPub::ProcessStatusUpdateService < BaseService
   include JsonLdHelper
+  include Redisable
+  include Lockable
 
-  def call(status, json)
+  def call(status, json, request_id: nil)
     raise ArgumentError, 'Status has unsaved changes' if status.changed?
 
     @json                      = json
@@ -13,44 +15,53 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
     @account                   = status.account
     @media_attachments_changed = false
     @poll_changed              = false
+    @request_id                = request_id
 
     # Only native types can be updated at the moment
     return @status if !expected_type? || already_updated_more_recently?
 
-    last_edit_date = status.edited_at.presence || status.created_at
-
-    # Since we rely on tracking of previous changes, ensure clean slate
-    status.clear_changes_information
-
-    # Only allow processing one create/update per status at a time
-    RedisLock.acquire(lock_options) do |lock|
-      if lock.acquired?
-        Status.transaction do
-          record_previous_edit!
-          update_media_attachments!
-          update_poll!
-          update_immediate_attributes!
-          update_metadata!
-          create_edits!
-        end
-
-        queue_poll_notifications!
-
-        next unless significant_changes?
-
-        reset_preview_card!
-        broadcast_updates!
-      else
-        raise Mastodon::RaceConditionError
-      end
+    if @status_parser.edited_at.present? && (@status.edited_at.nil? || @status_parser.edited_at > @status.edited_at)
+      handle_explicit_update!
+    else
+      handle_implicit_update!
     end
-
-    forward_activity! if significant_changes? && @status_parser.edited_at.present? && @status_parser.edited_at > last_edit_date
 
     @status
   end
 
   private
+
+  def handle_explicit_update!
+    last_edit_date = @status.edited_at.presence || @status.created_at
+
+    # Only allow processing one create/update per status at a time
+    with_lock("create:#{@uri}") do
+      Status.transaction do
+        record_previous_edit!
+        update_media_attachments!
+        update_poll!
+        update_immediate_attributes!
+        update_metadata!
+        create_edits!
+      end
+
+      queue_poll_notifications!
+
+      next unless significant_changes?
+
+      reset_preview_card!
+      broadcast_updates!
+    end
+
+    forward_activity! if significant_changes? && @status_parser.edited_at > last_edit_date
+  end
+
+  def handle_implicit_update!
+    with_lock("create:#{@uri}") do
+      update_poll!(allow_significant_changes: false)
+      queue_poll_notifications!
+    end
+  end
 
   def update_media_attachments!
     previous_media_attachments     = @status.media_attachments.to_a
@@ -82,7 +93,13 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
 
         next if unsupported_media_type?(media_attachment_parser.file_content_type) || skip_download?
 
-        RedownloadMediaWorker.perform_async(media_attachment.id) if media_attachment.remote_url_previously_changed? || media_attachment.thumbnail_remote_url_previously_changed?
+        begin
+          media_attachment.download_file! if media_attachment.remote_url_previously_changed?
+          media_attachment.download_thumbnail! if media_attachment.thumbnail_remote_url_previously_changed?
+          media_attachment.save
+        rescue Mastodon::UnexpectedResponseError, HTTP::TimeoutError, HTTP::ConnectionError, OpenSSL::SSL::SSLError
+          RedownloadMediaWorker.perform_in(rand(30..600).seconds, media_attachment.id)
+        end
       rescue Addressable::URI::InvalidURIError => e
         Rails.logger.debug "Invalid URL in attachment: #{e}"
       end
@@ -98,7 +115,7 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
     @media_attachments_changed = true if @status.ordered_media_attachment_ids != previous_media_attachments_ids
   end
 
-  def update_poll!
+  def update_poll!(allow_significant_changes: true)
     previous_poll        = @status.preloadable_poll
     @previous_expires_at = previous_poll&.expires_at
     poll_parser          = ActivityPub::Parser::PollParser.new(@json)
@@ -109,6 +126,7 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
       # If for some reasons the options were changed, it invalidates all previous
       # votes, so we need to remove them
       @poll_changed = true if poll_parser.significantly_changes?(poll)
+      return if @poll_changed && !allow_significant_changes
 
       poll.last_fetched_at = Time.now.utc
       poll.options         = poll_parser.options
@@ -121,6 +139,8 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
 
       @status.poll_id = poll.id
     elsif previous_poll.present?
+      return unless allow_significant_changes
+
       previous_poll.destroy!
       @poll_changed = true
       @status.poll_id = nil
@@ -132,7 +152,10 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
     @status.spoiler_text = @status_parser.spoiler_text || ''
     @status.sensitive    = @account.sensitized? || @status_parser.sensitive || false
     @status.language     = @status_parser.language
-    @status.edited_at    = @status_parser.edited_at || Time.now.utc if significant_changes?
+
+    @significant_changes = text_significantly_changed? || @status.spoiler_text_changed? || @media_attachments_changed || @poll_changed
+
+    @status.edited_at = @status_parser.edited_at if significant_changes?
 
     @status.save!
   end
@@ -169,7 +192,7 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
       next if href.blank?
 
       account   = ActivityPub::TagManager.instance.uri_to_resource(href, Account)
-      account ||= ActivityPub::FetchRemoteAccountService.new.call(href)
+      account ||= ActivityPub::FetchRemoteAccountService.new.call(href, request_id: @request_id)
 
       next if account.nil?
 
@@ -217,10 +240,6 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
     equals_or_includes_any?(@json['type'], %w(Note Question))
   end
 
-  def lock_options
-    { redis: Redis.current, key: "create:#{@uri}", autorelease: 15.minutes.seconds }
-  end
-
   def record_previous_edit!
     @previous_edit = @status.build_snapshot(at_time: @status.created_at, rate_limit: false) if @status.edits.empty?
   end
@@ -243,7 +262,14 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
   end
 
   def significant_changes?
-    @status.text_changed? || @status.text_previously_changed? || @status.spoiler_text_changed? || @status.spoiler_text_previously_changed? || @media_attachments_changed || @poll_changed
+    @significant_changes
+  end
+
+  def text_significantly_changed?
+    return false unless @status.text_changed?
+
+    old, new = @status.text_change
+    HtmlAwareFormatter.new(old, false).to_s != HtmlAwareFormatter.new(new, false).to_s
   end
 
   def already_updated_more_recently?
