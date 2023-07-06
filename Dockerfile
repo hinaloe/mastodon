@@ -99,8 +99,6 @@ RUN apt-get update && \
 COPY --chown=mastodon:mastodon . /opt/mastodon
 COPY --from=build-dep --chown=mastodon:mastodon /opt/mastodon /opt/mastodon
 
-RUN node /opt/mastodon/bin/version-hash.js $(git -C /opt/mastodon rev-parse --short HEAD)
-
 # Run mastodon services in prod mode
 ENV RAILS_ENV="production"
 ENV NODE_ENV="production"
@@ -111,6 +109,8 @@ ENV BIND="0.0.0.0"
 
 # Set the run user
 USER mastodon
+
+RUN node /opt/mastodon/bin/version-hash.js $(git -C /opt/mastodon rev-parse --short HEAD)
 
 # Precompile assets
 RUN cd ~ && \
