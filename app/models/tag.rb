@@ -90,17 +90,8 @@ class Tag < ApplicationRecord
 
   class << self
     def find_or_create_by_names(name_or_names)
-      names = Array(name_or_names).map { |str| [normalize(str), str] }.uniq(&:first)
-
-      names.map do |(normalized_name, display_name)|
-        tag = begin
-          matching_name(normalized_name).first || create!(
-            name: normalized_name,
-            display_name: display_name.gsub(HASHTAG_INVALID_CHARS_RE, '')
-          )
-        rescue ActiveRecord::RecordNotUnique
-          find_normalized(normalized_name)
-        end
+      Array(name_or_names).map(&method(:normalize)).uniq { |str| str.mb_chars.downcase.to_s }.map do |normalized_name|
+        tag = matching_name(normalized_name).first || create(name: normalized_name)
 
         yield tag if block_given?
 
