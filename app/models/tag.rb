@@ -94,7 +94,11 @@ class Tag < ApplicationRecord
         tag = begin
           matching_name(normalized_name).first || create!(name: normalized_name)
         rescue ActiveRecord::RecordNotUnique
-          find_normalized(normalized_name)
+          # A concurrent insert won the race. The row should be visible now,
+          # but if it isn't (e.g. read-replica lag), re-raise instead of
+          # silently yielding nil to callers — Sidekiq's retry will pick it
+          # up once the row is visible.
+          find_normalized(normalized_name) || raise
         end
 
         yield tag if block_given?

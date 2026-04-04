@@ -29,7 +29,7 @@ class ActivityPub::LinkedDataSignature
 
     creator if creator.keypair.public_key.verify(OpenSSL::Digest.new('SHA256'), Base64.decode64(signature), to_be_verified)
   rescue OpenSSL::PKey::RSAError
-    false
+    nil
   end
 
   def sign!(creator, sign_with: nil)
