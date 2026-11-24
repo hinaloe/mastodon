@@ -6,6 +6,10 @@ end
 ENV['BUNDLE_GEMFILE'] ||= File.expand_path('../Gemfile', __dir__)
 
 require 'bundler/setup' # Set up gems listed in the Gemfile.
+
+# concurrent-ruby >= 1.3.5 no longer requires logger, which Rails 6.1 relies on
+require 'logger'
+
 require 'bootsnap' # Speed up boot time by caching expensive operations.
 
 Bootsnap.setup(
