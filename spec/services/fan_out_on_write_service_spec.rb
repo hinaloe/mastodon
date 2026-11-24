@@ -110,3 +110,27 @@ RSpec.describe FanOutOnWriteService, type: :service do
     end
   end
 end
+
+RSpec.describe FanOutOnWriteService, type: :service do
+  describe 'when the author of the boosted status is suspended' do
+    let!(:alice) { Fabricate(:user).account }
+    let!(:bob)   { Fabricate(:user).account }
+    let(:remote) { Fabricate(:account, domain: 'example.com', suspended_at: Time.now.utc) }
+    let(:original) { Fabricate(:status, account: remote, visibility: :public) }
+    let(:reblog) { Fabricate(:status, account: alice, reblog: original) }
+
+    before do
+      bob.follow!(alice)
+      allow(redis).to receive(:publish)
+      described_class.new.call(reblog)
+    end
+
+    it 'does not add the boost to home feeds' do
+      expect(HomeFeed.new(bob).get(10).map(&:id)).to_not include(reblog.id)
+    end
+
+    it 'does not publish to streams' do
+      expect(redis).to_not have_received(:publish)
+    end
+  end
+end
