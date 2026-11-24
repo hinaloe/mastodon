@@ -95,6 +95,9 @@ class User < ApplicationRecord
 
   validates :locale, inclusion: I18n.available_locales.map(&:to_s), if: :locale?
   validates_with BlacklistedEmailValidator, if: -> { !confirmed? }
+  # Only checked for new records and e-mail changes, so that existing accounts
+  # with addresses that predate this validation can still be saved
+  validates :email, email_address: true, length: { maximum: 320 }, if: -> { new_record? || will_save_change_to_email? }
   validates_with EmailMxValidator, if: :validate_email_dns?
   validates :agreement, acceptance: { allow_nil: false, accept: [true, 'true', '1'] }, on: :create
 
