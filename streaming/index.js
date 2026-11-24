@@ -451,8 +451,10 @@ const startWorker = async (workerId) => {
   const checkScopes = (req, channelName) => new Promise((resolve, reject) => {
     log.silly(req.requestId, `Checking OAuth scopes for ${channelName}`);
 
-    // When accessing public channels, no scopes are needed
-    if (PUBLIC_CHANNELS.includes(channelName)) {
+    // When accessing public channels anonymously, no scopes are needed.
+    // When an access token is presented, it must have a read scope, so that
+    // tokens without read access cannot be used to read public timelines.
+    if (PUBLIC_CHANNELS.includes(channelName) && !req.accessTokenId) {
       resolve();
       return;
     }
