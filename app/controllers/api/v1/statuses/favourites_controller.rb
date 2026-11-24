@@ -24,7 +24,7 @@ class Api::V1::Statuses::FavouritesController < Api::BaseController
     end
 
     render json: @status, serializer: REST::StatusSerializer, relationships: StatusRelationshipsPresenter.new([@status], current_account.id, favourites_map: { @status.id => false })
-  rescue Mastodon::NotPermittedError
+  rescue ActiveRecord::RecordNotFound, Mastodon::NotPermittedError
     not_found
   end
 
@@ -33,7 +33,7 @@ class Api::V1::Statuses::FavouritesController < Api::BaseController
   def set_status
     @status = Status.find(params[:status_id])
     authorize @status, :show?
-  rescue Mastodon::NotPermittedError
+  rescue ActiveRecord::RecordNotFound, Mastodon::NotPermittedError
     not_found
   end
 end
