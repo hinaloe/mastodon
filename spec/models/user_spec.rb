@@ -392,6 +392,42 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe '#change_password!' do
+    subject(:user) { Fabricate(:user, password: 'foobar12345') }
+
+    let!(:session_activation) { Fabricate(:session_activation, user: user) }
+    let!(:access_token) { Fabricate(:access_token, resource_owner_id: user.id) }
+    let!(:web_push_subscription) { Fabricate(:web_push_subscription, access_token: access_token) }
+
+    let(:redis_pipeline_stub) { instance_double(Redis::Namespace, publish: nil) }
+
+    before do
+      allow(redis).to receive(:pipelined).and_yield(redis_pipeline_stub)
+      user.change_password!('newpassword12345')
+    end
+
+    it 'changes the password' do
+      expect(user.external_or_valid_password?('foobar12345')).to be false
+      expect(user.external_or_valid_password?('newpassword12345')).to be true
+    end
+
+    it 'deactivates all sessions' do
+      expect(user.session_activations.count).to eq 0
+    end
+
+    it 'revokes all access tokens' do
+      expect(Doorkeeper::AccessToken.active_for(user).count).to eq 0
+    end
+
+    it 'revokes streaming access for all access tokens' do
+      expect(redis_pipeline_stub).to have_received(:publish).with("timeline:access_token:#{access_token.id}", Oj.dump(event: :kill)).once
+    end
+
+    it 'removes push subscriptions' do
+      expect(Web::PushSubscription.where(user: user).or(Web::PushSubscription.where(access_token: access_token)).count).to eq 0
+    end
+  end
+
   describe '#confirm!' do
     subject(:user) { Fabricate(:user, confirmed_at: confirmed_at) }
 
