@@ -57,11 +57,11 @@ class ApplicationController < ActionController::Base
   end
 
   def require_admin!
-    forbidden unless current_user&.admin?
+    forbidden unless current_user&.admin? && !current_user.disabled?
   end
 
   def require_staff!
-    forbidden unless current_user&.staff?
+    forbidden unless current_user&.staff? && !current_user.disabled?
   end
 
   def require_functional!
