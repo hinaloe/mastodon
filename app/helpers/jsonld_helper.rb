@@ -78,7 +78,14 @@ module JsonLdHelper
 
   def canonicalize(json)
     graph = RDF::Graph.new << JSON::LD::API.toRdf(json, documentLoader: method(:load_jsonld_context))
-    graph.dump(:normalize)
+
+    begin
+      graph.dump(:normalize)
+    rescue RuntimeError => e
+      # rdf-normalize raises a plain RuntimeError when it gives up on a
+      # pathological document (too many calls); treat it as invalid JSON-LD
+      raise Mastodon::InvalidJsonLdError, e.message
+    end
   end
 
   # Checks for unsupported JSON-LD features or too many nodes
