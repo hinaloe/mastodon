@@ -26,9 +26,12 @@ class CustomFilter < ApplicationRecord
   include Expireable
   include Redisable
 
+  KEYWORD_LENGTH_LIMIT = 512
+
   belongs_to :account
 
   validates :phrase, :context, presence: true
+  validates :phrase, length: { maximum: KEYWORD_LENGTH_LIMIT }
   validate :context_must_be_valid
   validate :irreversible_must_be_within_context
 
