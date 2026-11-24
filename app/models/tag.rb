@@ -92,7 +92,12 @@ class Tag < ApplicationRecord
     def find_or_create_by_names(name_or_names)
       Array(name_or_names).map(&method(:normalize)).uniq { |str| str.mb_chars.downcase.to_s }.map do |normalized_name|
         tag = begin
-          matching_name(normalized_name).first || create!(name: normalized_name)
+          # Use `create` rather than `create!`: callers rely on getting an
+          # unsaved, invalid Tag back for invalid names and filter it with
+          # `valid?`. The savepoint keeps an enclosing transaction usable
+          # when the INSERT hits the unique index, so the lookup below can
+          # still run.
+          matching_name(normalized_name).first || transaction(requires_new: true) { create(name: normalized_name) }
         rescue ActiveRecord::RecordNotUnique
           # A concurrent insert won the race. The row should be visible now,
           # but if it isn't (e.g. read-replica lag), re-raise instead of

@@ -294,6 +294,7 @@ RSpec.describe ActivityPub::ProcessStatusUpdateService, type: :service do
           updated: '2021-09-08T22:39:25Z',
           tag: [
             { type: 'Hashtag', name: 'foo' },
+            { type: 'Hashtag', name: '#2024' },
           ],
         }
       end
@@ -302,7 +303,7 @@ RSpec.describe ActivityPub::ProcessStatusUpdateService, type: :service do
         subject.call(status, json)
       end
 
-      it 'updates tags' do
+      it 'updates tags, ignoring invalid ones' do
         expect(status.tags.reload.map(&:name)).to eq %w(foo)
       end
     end
