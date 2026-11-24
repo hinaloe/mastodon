@@ -375,7 +375,7 @@ RSpec.describe User, type: :model do
     end
 
     it 'changes the password immediately' do
-      expect(user.external_or_valid_password?('foobar12345')).to be false
+      expect(user.valid_password?('foobar12345')).to be false
     end
 
     it 'deactivates all sessions' do
@@ -410,8 +410,8 @@ RSpec.describe User, type: :model do
     end
 
     it 'changes the password' do
-      expect(user.external_or_valid_password?('foobar12345')).to be false
-      expect(user.external_or_valid_password?('newpassword12345')).to be true
+      expect(user.valid_password?('foobar12345')).to be false
+      expect(user.valid_password?('newpassword12345')).to be true
     end
 
     it 'deactivates all sessions' do
