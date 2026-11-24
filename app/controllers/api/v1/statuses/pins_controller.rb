@@ -28,6 +28,9 @@ class Api::V1::Statuses::PinsController < Api::BaseController
 
   def set_status
     @status = Status.find(params[:status_id])
+    authorize @status, :show?
+  rescue ActiveRecord::RecordNotFound, Mastodon::NotPermittedError
+    not_found
   end
 
   def distribute_add_activity!
