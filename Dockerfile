@@ -1,104 +1,243 @@
-FROM ubuntu:20.04 as build-dep
+# syntax=docker/dockerfile:1
 
-# Use bash for the shell
-SHELL ["/bin/bash", "-c"]
-RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+# This Dockerfile requires BuildKit (default since Docker Engine 23).
+#
+# Stages:
+#   base         - Ubuntu with the apt cache kept for BuildKit cache mounts
+#   ruby         - Ruby compiled from source into /opt/ruby
+#   node         - Node.js and Yarn v1 unpacked into /opt/node
+#   build-dep    - gems and node modules for /opt/mastodon (name kept for CI)
+#   precompiler  - application source, version patch and precompiled assets
+#   (final)      - runtime image
 
-# Install Node v16 (LTS)
-ENV NODE_VER="16.20.2"
-RUN ARCH= && \
-    dpkgArch="$(dpkg --print-architecture)" && \
-  case "${dpkgArch##*-}" in \
+ARG UBUNTU_VERSION="26.04"
+
+# Ruby version to compile, change with [--build-arg RUBY_VERSION="3.4.x" --build-arg RUBY_SHA256="..."]
+ARG RUBY_VERSION="3.4.13"
+ARG RUBY_SHA256="d0d3bf3dd8c224a3c3b7ecd816a0f1b2cbcf4f87b5afcbdbe91d3fef177f351a"
+
+# Node.js version, change with [--build-arg NODE_VERSION="26.x.y"]
+ARG NODE_VERSION="26.13.1"
+ARG YARN_VERSION="1.22.22"
+
+FROM ubuntu:${UBUNTU_VERSION} AS base
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-c"]
+
+ENV DEBIAN_FRONTEND="noninteractive"
+
+RUN \
+  # Keep downloaded packages so that they can be reused through BuildKit cache mounts
+  rm -f /etc/apt/apt.conf.d/docker-clean; \
+  echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache; \
+  echo "Etc/UTC" > /etc/localtime
+
+########################################################################################################################
+FROM base AS ruby
+
+ARG RUBY_VERSION
+ARG RUBY_SHA256
+ARG TARGETPLATFORM
+
+# hadolint ignore=DL3008
+RUN \
+  --mount=type=cache,id=apt-cache-${TARGETPLATFORM},target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=apt-lib-${TARGETPLATFORM},target=/var/lib/apt,sharing=locked \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    libffi-dev \
+    libgdbm-dev \
+    libjemalloc-dev \
+    libncurses-dev \
+    libreadline-dev \
+    libssl-dev \
+    libyaml-dev \
+    wget \
+    zlib1g-dev \
+  ;
+
+RUN \
+  cd /tmp; \
+  wget -q "https://cache.ruby-lang.org/pub/ruby/${RUBY_VERSION%.*}/ruby-${RUBY_VERSION}.tar.gz"; \
+  echo "${RUBY_SHA256}  ruby-${RUBY_VERSION}.tar.gz" | sha256sum -c -; \
+  tar xf "ruby-${RUBY_VERSION}.tar.gz"; \
+  cd "ruby-${RUBY_VERSION}"; \
+  ./configure --prefix=/opt/ruby \
+    --with-jemalloc \
+    --disable-install-doc; \
+  make -j"$(nproc)" > /dev/null; \
+  make install; \
+  cd /; \
+  rm -rf /tmp/ruby-*
+
+########################################################################################################################
+FROM base AS node
+
+ARG NODE_VERSION
+ARG YARN_VERSION
+ARG TARGETARCH
+ARG TARGETPLATFORM
+
+# hadolint ignore=DL3008
+RUN \
+  --mount=type=cache,id=apt-cache-${TARGETPLATFORM},target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=apt-lib-${TARGETPLATFORM},target=/var/lib/apt,sharing=locked \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libatomic1 \
+    wget \
+    xz-utils \
+  ;
+
+RUN \
+  case "${TARGETARCH}" in \
     amd64) ARCH='x64';; \
-    ppc64el) ARCH='ppc64le';; \
-    s390x) ARCH='s390x';; \
     arm64) ARCH='arm64';; \
-    armhf) ARCH='armv7l';; \
-    i386) ARCH='x86';; \
-    *) echo "unsupported architecture"; exit 1 ;; \
-  esac && \
-    echo "Etc/UTC" > /etc/localtime && \
-	apt-get update && \
-	apt-get -yq dist-upgrade && \
-	apt-get install -y --no-install-recommends ca-certificates wget python apt-utils && \
-	cd ~ && \
-	wget -q https://nodejs.org/download/release/v$NODE_VER/node-v$NODE_VER-linux-$ARCH.tar.gz && \
-	tar xf node-v$NODE_VER-linux-$ARCH.tar.gz && \
-	rm node-v$NODE_VER-linux-$ARCH.tar.gz && \
-	mv node-v$NODE_VER-linux-$ARCH /opt/node
+    ppc64le) ARCH='ppc64le';; \
+    s390x) ARCH='s390x';; \
+    *) echo "unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
+  esac; \
+  cd /tmp; \
+  wget -q "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz"; \
+  wget -q "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt"; \
+  grep " node-v${NODE_VERSION}-linux-${ARCH}.tar.xz\$" SHASUMS256.txt | sha256sum -c -; \
+  mkdir -p /opt/node; \
+  tar xf "node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" -C /opt/node --strip-components=1; \
+  rm -f /tmp/node-* /tmp/SHASUMS256.txt; \
+  # Corepack is no longer bundled with Node.js, so install Yarn v1 with npm
+  PATH="/opt/node/bin:${PATH}" npm install -g "yarn@${YARN_VERSION}"; \
+  PATH="/opt/node/bin:${PATH}" npm cache clean --force
 
-# Install Ruby 3.0
-ENV RUBY_VER="3.0.7"
-RUN apt-get update && \
-  apt-get install -y --no-install-recommends build-essential \
-    bison libyaml-dev libgdbm-dev libreadline-dev libjemalloc-dev \
-		libncurses5-dev libffi-dev zlib1g-dev libssl-dev && \
-	cd ~ && \
-	wget https://cache.ruby-lang.org/pub/ruby/${RUBY_VER%.*}/ruby-$RUBY_VER.tar.gz && \
-	tar xf ruby-$RUBY_VER.tar.gz && \
-	cd ruby-$RUBY_VER && \
-	./configure --prefix=/opt/ruby \
-	  --with-jemalloc \
-	  --with-shared \
-	  --disable-install-doc && \
-	make -j"$(nproc)" > /dev/null && \
-	make install && \
-	rm -rf ../ruby-$RUBY_VER.tar.gz ../ruby-$RUBY_VER
+########################################################################################################################
+FROM base AS build-dep
+
+ARG TARGETPLATFORM
+
+COPY --link --from=ruby /opt/ruby /opt/ruby
+COPY --link --from=node /opt/node /opt/node
 
 ENV PATH="${PATH}:/opt/ruby/bin:/opt/node/bin"
 
-RUN npm install -g npm@9 && \
-	npm install -g yarn && \
-	gem install bundler && \
-	apt-get update && \
-	apt-get install -y --no-install-recommends git libicu-dev libidn11-dev \
-	libpq-dev shared-mime-info
+# hadolint ignore=DL3008
+RUN \
+  --mount=type=cache,id=apt-cache-${TARGETPLATFORM},target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=apt-lib-${TARGETPLATFORM},target=/var/lib/apt,sharing=locked \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    git \
+    libatomic1 \
+    libffi-dev \
+    libicu-dev \
+    libidn-dev \
+    # Ruby is built with jemalloc, so native extensions need its headers
+    libjemalloc-dev \
+    libpq-dev \
+    libssl-dev \
+    libyaml-dev \
+    pkg-config \
+    python3 \
+    shared-mime-info \
+    zlib1g-dev \
+  ;
 
-COPY Gemfile* package.json yarn.lock /opt/mastodon/
+WORKDIR /opt/mastodon
 
-RUN cd /opt/mastodon && \
-  bundle config set --local deployment 'true' && \
-  bundle config set --local without 'development test' && \
-  bundle config set silence_root_warning true && \
-	bundle install -j"$(nproc)" && \
-	yarn install --pure-lockfile
+COPY --link Gemfile* package.json yarn.lock /opt/mastodon/
 
-FROM ubuntu:20.04
+# Bundler's global gem cache is deliberately not used: it restores compiled
+# extensions from the cache, which loses libraries that some gems (e.g.
+# llhttp-ffi) build inside their own directory. This layer is rebuilt only
+# when Gemfile or Gemfile.lock change.
+RUN \
+  bundle config set --local deployment 'true'; \
+  bundle config set --local without 'development test'; \
+  bundle config set silence_root_warning true; \
+  bundle install -j"$(nproc)"
 
-# Copy over all the langs needed for runtime
-COPY --from=build-dep /opt/node /opt/node
-COPY --from=build-dep /opt/ruby /opt/ruby
+RUN \
+  # Keep downloaded packages across builds
+  --mount=type=cache,id=yarn-cache-${TARGETPLATFORM},target=/usr/local/share/.cache/yarn,sharing=locked \
+  yarn install --frozen-lockfile --network-timeout 600000
+
+########################################################################################################################
+FROM build-dep AS precompiler
+
+COPY --link . /opt/mastodon/
+
+RUN \
+  # Append the commit hash to the version, then drop the repository metadata
+  node bin/version-hash.js "$(git -C /opt/mastodon rev-parse --short HEAD)"; \
+  rm -rf .git
+
+RUN \
+  # webpack 4 relies on the MD4 hash, which needs the OpenSSL legacy provider
+  NODE_OPTIONS=--openssl-legacy-provider \
+  RAILS_ENV=production \
+  NODE_ENV=production \
+  OTP_SECRET=precompile_placeholder \
+  SECRET_KEY_BASE=precompile_placeholder \
+  bin/rails assets:precompile; \
+  rm -rf tmp/cache
+
+########################################################################################################################
+FROM base
+
+ARG UID="991"
+ARG GID="991"
+ARG TARGETPLATFORM
+
+COPY --link --from=ruby /opt/ruby /opt/ruby
+COPY --link --from=node /opt/node /opt/node
 
 # Add more PATHs to the PATH
 ENV PATH="${PATH}:/opt/ruby/bin:/opt/node/bin:/opt/mastodon/bin"
 
+# Install Mastodon runtime dependencies
+# hadolint ignore=DL3008
+RUN \
+  --mount=type=cache,id=apt-cache-${TARGETPLATFORM},target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=apt-lib-${TARGETPLATFORM},target=/var/lib/apt,sharing=locked \
+  apt-get update; \
+  apt-get dist-upgrade -yq; \
+  apt-get install -y --no-install-recommends \
+    ca-certificates \
+    ffmpeg \
+    file \
+    git \
+    imagemagick \
+    libatomic1 \
+    libffi8 \
+    libgdbm6t64 \
+    libicu78 \
+    libidn12 \
+    libjemalloc2 \
+    libncursesw6 \
+    libpq5 \
+    libreadline8t64 \
+    libssl3t64 \
+    libyaml-0-2 \
+    procps \
+    tini \
+    tzdata \
+    wget \
+    whois \
+    zlib1g \
+  ;
+
 # Create the mastodon user
-ARG UID=991
-ARG GID=991
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN apt-get update && \
-	echo "Etc/UTC" > /etc/localtime && \
-	apt-get install -y --no-install-recommends whois wget && \
-	addgroup --gid $GID mastodon && \
-	useradd -m -u $UID -g $GID -d /opt/mastodon mastodon && \
-	echo "mastodon:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 24 | mkpasswd -s -m sha-256)" | chpasswd && \
-	rm -rf /var/lib/apt/lists/*
+RUN \
+  groupadd -g "${GID}" mastodon; \
+  useradd -l -m -u "${UID}" -g "${GID}" -d /opt/mastodon mastodon; \
+  echo "mastodon:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 24 | mkpasswd -s -m sha-256)" | chpasswd; \
+  ln -s /opt/mastodon /mastodon
 
-# Install mastodon runtime deps
-RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
-RUN apt-get update && \
-  apt-get -y --no-install-recommends install \
-	  libssl1.1 libpq5 imagemagick ffmpeg libjemalloc2 git \
-	  libicu66 libidn11 libyaml-0-2 \
-	  file ca-certificates tzdata libreadline8 gcc tini apt-utils && \
-	ln -s /opt/mastodon /mastodon && \
-	gem install bundler && \
-	rm -rf /var/cache && \
-	rm -rf /var/lib/apt/lists/*
-
-# Copy over mastodon source, and dependencies from building, and set permissions
-COPY --chown=mastodon:mastodon . /opt/mastodon
-COPY --from=build-dep --chown=mastodon:mastodon /opt/mastodon /opt/mastodon
+# Copy over mastodon source, dependencies and precompiled assets, and set permissions
+COPY --link --chown=${UID}:${GID} --from=precompiler /opt/mastodon /opt/mastodon
 
 # Run mastodon services in prod mode
 ENV RAILS_ENV="production"
@@ -110,13 +249,6 @@ ENV BIND="0.0.0.0"
 
 # Set the run user
 USER mastodon
-
-RUN node /opt/mastodon/bin/version-hash.js $(git -C /opt/mastodon rev-parse --short HEAD)
-
-# Precompile assets
-RUN cd ~ && \
-	OTP_SECRET=precompile_placeholder SECRET_KEY_BASE=precompile_placeholder rails assets:precompile && \
-	yarn cache clean
 
 # Set the work dir and the container entry point
 WORKDIR /opt/mastodon
