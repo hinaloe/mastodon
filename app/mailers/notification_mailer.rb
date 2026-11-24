@@ -66,7 +66,7 @@ class NotificationMailer < ApplicationMailer
     end
   end
 
-  def digest(recipient, **opts)
+  def digest(recipient, opts = {})
     return unless recipient.user.functional?
 
     @me                  = recipient

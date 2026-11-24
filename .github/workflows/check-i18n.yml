@@ -18,11 +18,11 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libicu-dev libidn11-dev
+          sudo apt-get install -y libicu-dev libidn-dev
       - name: Set up Ruby
         uses: ruby/setup-ruby@3ff19f5e2baf30647122352b96108b1fbe250c64 # v1.299.0
         with:
-          ruby-version: '3.0'
+          ruby-version: '.ruby-version'
           bundler-cache: true
       - name: Check locale file normalization
         run: bundle exec i18n-tasks check-normalized

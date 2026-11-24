@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 source 'https://rubygems.org'
-ruby '>= 2.6.0', '< 3.1.0'
+ruby '>= 3.2.0', '< 3.5.0'
 
 gem 'pkg-config', '~> 1.4'
 gem 'rexml', '~> 3.2'
@@ -68,14 +68,14 @@ gem 'nsa', '~> 0.2'
 gem 'oj', '~> 3.13'
 gem 'ox', '~> 2.14'
 gem 'parslet'
-gem 'posix-spawn'
 gem 'public_suffix', '~> 4.0.7'
 gem 'pundit', '~> 2.2'
 gem 'premailer-rails'
 gem 'rack-attack', '~> 6.6'
 gem 'rack-cors', '~> 1.1', require: 'rack/cors'
 gem 'rails-i18n', '~> 6.0'
-gem 'rails-settings-cached', '~> 0.6'
+# Same fork as upstream Mastodon 4.2, which allows YAML aliases in config/settings.yml on Psych 4
+gem 'rails-settings-cached', '~> 0.6', git: 'https://github.com/mastodon/rails-settings-cached.git', ref: '86328ef0bd04ce21cc0504ff5e334591e8c2ccab'
 gem 'redis', '~> 4.5', require: ['redis', 'redis/connection/hiredis']
 gem 'mario-redis-lock', '~> 1.2', require: 'redis_lock'
 gem 'rqrcode', '~> 2.1'
@@ -95,8 +95,9 @@ gem 'tty-prompt', '~> 0.23', require: false
 gem 'twitter-text', '~> 3.1.0'
 gem 'tzinfo-data', '~> 1.2022'
 gem 'webpacker', '~> 5.4'
-gem 'webpush', '~> 0.3'
-gem 'webauthn', '~> 3.0.0.alpha1'
+# Same fork as upstream Mastodon 4.1+, which supports OpenSSL 3 (immutable keys)
+gem 'webpush', github: 'ClearlyClaire/webpush', ref: 'f14a4d52e201128b1b00245d11b6de80d6cfdcd9'
+gem 'webauthn', '~> 3.0'
 
 gem 'json-ld'
 gem 'json-ld-preloaded', '~> 3.2'
@@ -153,3 +154,16 @@ gem 'concurrent-ruby', require: false
 gem 'connection_pool', require: false
 
 gem 'xorcist', '~> 1.1'
+
+# Default gems that became bundled gems, which Rails 6.1 and other gems
+# still load without declaring them
+gem 'base64'
+gem 'benchmark'
+gem 'bigdecimal'
+gem 'csv'
+gem 'drb'
+gem 'logger'
+gem 'mutex_m'
+gem 'nkf'
+gem 'observer'
+gem 'ostruct'
