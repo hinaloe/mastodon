@@ -75,6 +75,29 @@ describe JsonLdHelper do
         stub_request(:get, 'https://mallory.test/').to_return(body: '{"id": "https://alice.test/"}', headers: { 'Content-Type': 'application/activity+json' })
         expect(fetch_resource('https://mallory.test/', true)).to eq nil
       end
+
+      it 'returns the resource if the retrieved ID matches the given URI' do
+        stub_request(:get, 'https://alice.test/').to_return(body: '{"id": "https://alice.test/"}', headers: { 'Content-Type': 'application/activity+json' })
+        expect(fetch_resource('https://alice.test/', true)).to eq({ 'id' => 'https://alice.test/' })
+      end
+
+      it 'returns nil if the given URI redirects to another host serving a document with that ID' do
+        stub_request(:get, 'https://alice.test/redirect').to_return(status: 302, headers: { 'Location' => 'https://mallory.test/' })
+        stub_request(:get, 'https://mallory.test/').to_return(body: '{"id": "https://alice.test/redirect"}', headers: { 'Content-Type': 'application/activity+json' })
+
+        expect(fetch_resource('https://alice.test/redirect', true)).to eq nil
+        expect(a_request(:get, 'https://mallory.test/')).to_not have_been_made
+      end
+    end
+
+    context 'when the second argument is false and the retrieved ID redirects' do
+      it 'returns nil' do
+        stub_request(:get, 'https://bob.test/').to_return(body: '{"id": "https://alice.test/redirect"}', headers: { 'Content-Type': 'application/activity+json' })
+        stub_request(:get, 'https://alice.test/redirect').to_return(status: 302, headers: { 'Location' => 'https://mallory.test/' })
+        stub_request(:get, 'https://mallory.test/').to_return(body: '{"id": "https://alice.test/redirect"}', headers: { 'Content-Type': 'application/activity+json' })
+
+        expect(fetch_resource('https://bob.test/', false)).to eq nil
+      end
     end
   end
 

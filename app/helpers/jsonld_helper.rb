@@ -202,17 +202,22 @@ module JsonLdHelper
       uri = json['id']
     end
 
-    json = fetch_resource_without_id_validation(uri, on_behalf_of)
+    # The final fetch must not follow redirects, otherwise an open redirect on
+    # the origin of `uri` could be used to serve an attacker-controlled
+    # document under that origin's identifier
+    json = fetch_resource_without_id_validation(uri, on_behalf_of, allow_redirects: false)
     json.present? && json['id'] == uri ? json : nil
   end
 
-  def fetch_resource_without_id_validation(uri, on_behalf_of = nil, raise_on_temporary_error = false)
+  def fetch_resource_without_id_validation(uri, on_behalf_of = nil, raise_on_temporary_error = false, allow_redirects: true)
     on_behalf_of ||= Account.representative
 
-    build_request(uri, on_behalf_of).perform do |response|
+    request_options = allow_redirects ? {} : { follow: false }
+
+    build_request(uri, on_behalf_of, options: request_options).perform do |response|
       raise Mastodon::UnexpectedResponseError, response unless response_successful?(response) || response_error_unsalvageable?(response) || !raise_on_temporary_error
 
-      body_to_json(response.body_with_limit) if response.code == 200 && valid_activitypub_content_type?(response)
+      body_to_json(response.body_with_limit) if response.code == 200 && valid_activitypub_content_type?(response) && (allow_redirects || response.uri.to_s == uri)
     end
   end
 
@@ -254,8 +259,8 @@ module JsonLdHelper
     response.code == 501 || ((400...500).cover?(response.code) && ![401, 408, 429].include?(response.code))
   end
 
-  def build_request(uri, on_behalf_of = nil)
-    Request.new(:get, uri).tap do |request|
+  def build_request(uri, on_behalf_of = nil, options: {})
+    Request.new(:get, uri, **options).tap do |request|
       request.on_behalf_of(on_behalf_of) if on_behalf_of
       request.add_headers('Accept' => 'application/activity+json, application/ld+json')
     end

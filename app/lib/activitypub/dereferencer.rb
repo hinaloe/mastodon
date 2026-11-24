@@ -42,7 +42,9 @@ class ActivityPub::Dereferencer
   def perform_request(uri, headers: nil)
     return if invalid_origin?(uri)
 
-    req = Request.new(:get, uri)
+    # Do not follow redirects, as the origin of the final document is not
+    # checked, and the signature and bearer token must not be sent elsewhere
+    req = Request.new(:get, uri, follow: false)
 
     req.add_headers('Accept' => 'application/activity+json, application/ld+json')
     req.add_headers(headers) if headers
