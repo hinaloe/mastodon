@@ -62,6 +62,10 @@ class Auth::SessionsController < Devise::SessionsController
   end
 
   def find_user_from_params
+    # This method can be called more than once per request, so do not keep a
+    # result from a previous call
+    @password_verified_externally = false
+
     user   = User.authenticate_with_ldap(user_params) if Devise.ldap_authentication
     user ||= User.authenticate_with_pam(user_params) if Devise.pam_authentication
 
