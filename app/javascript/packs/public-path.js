@@ -1,3 +1,9 @@
+// Some dependencies (e.g. axios 1.x) contain generators compiled by Babel with
+// `regenerator: false`, which expect a global `regeneratorRuntime`. This file
+// is the first import of every pack, so install the runtime here before any
+// other module is evaluated.
+import 'regenerator-runtime/runtime';
+
 // Dynamically set webpack's loading path depending on a meta header, in order
 // to share the same assets regardless of instance configuration.
 // See https://webpack.js.org/guides/public-path/#on-the-fly
