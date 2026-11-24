@@ -44,7 +44,7 @@ class Api::Web::PushSubscriptionsController < Api::Web::BaseController
   private
 
   def set_push_subscription
-    @push_subscription = ::Web::PushSubscription.find(params[:id])
+    @push_subscription = ::Web::PushSubscription.where(user_id: current_user.id).find(params[:id])
   end
 
   def subscription_params
