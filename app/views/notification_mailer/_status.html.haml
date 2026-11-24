@@ -38,7 +38,7 @@
                                     - status.ordered_media_attachments.each do |a|
                                       - if status.local?
                                         = link_to full_asset_url(a.file.url(:original)), full_asset_url(a.file.url(:original))
-                                      - else
+                                      - elsif a.remote_url&.start_with?('http://', 'https://')
                                         = link_to a.remote_url, a.remote_url
 
                               %p.status-footer

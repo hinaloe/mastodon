@@ -33,6 +33,10 @@ class Rack::Attack
       authenticated_token&.resource_owner_id
     end
 
+    def warden_user_id
+      @env['warden']&.user&.id
+    end
+
     def unauthenticated?
       !authenticated_user_id
     end
@@ -52,10 +56,6 @@ class Rack::Attack
     def paging_request?
       params['page'].present? || params['min_id'].present? || params['max_id'].present? || params['since_id'].present?
     end
-  end
-
-  Rack::Attack.safelist('allow from localhost') do |req|
-    req.remote_ip == '127.0.0.1' || req.remote_ip == '::1'
   end
 
   Rack::Attack.blocklist('deny from blocklist') do |req|
@@ -110,15 +110,27 @@ class Rack::Attack
   end
 
   throttle('throttle_email_confirmations/ip', limit: 25, period: 5.minutes) do |req|
-    req.throttleable_remote_ip if req.post? && (req.path_matches?('/auth/confirmation') || req.path == '/api/v1/emails/confirmations')
+    req.throttleable_remote_ip if (req.post? && (req.path_matches?('/auth/confirmation') || req.path == '/api/v1/emails/confirmations')) || ((req.put? || req.patch?) && req.path_matches?('/auth/setup'))
   end
 
   throttle('throttle_email_confirmations/email', limit: 5, period: 30.minutes) do |req|
-    if req.post? && req.path_matches?('/auth/password')
+    if req.post? && req.path_matches?('/auth/confirmation')
       req.params.dig('user', 'email').presence
     elsif req.post? && req.path == '/api/v1/emails/confirmations'
       req.authenticated_user_id
     end
+  end
+
+  throttle('throttle_auth_setup/email', limit: 5, period: 10.minutes) do |req|
+    req.params.dig('user', 'email').presence if (req.put? || req.patch?) && req.path_matches?('/auth/setup')
+  end
+
+  throttle('throttle_auth_setup/account', limit: 5, period: 10.minutes) do |req|
+    req.warden_user_id if (req.put? || req.patch?) && req.path_matches?('/auth/setup')
+  end
+
+  throttle('throttle_password_change/account', limit: 10, period: 10.minutes) do |req|
+    req.warden_user_id if (req.put? || req.patch?) && (req.path_matches?('/auth') || req.path_matches?('/auth/password'))
   end
 
   throttle('throttle_login_attempts/ip', limit: 25, period: 5.minutes) do |req|

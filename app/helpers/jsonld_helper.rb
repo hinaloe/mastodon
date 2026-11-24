@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module JsonLdHelper
+  UNSUPPORTED_JSONLD_KEYWORDS = %w(@graph @included @reverse).freeze
+
   include ContextHelper
 
   def equals_or_includes?(haystack, needle)
@@ -76,7 +78,48 @@ module JsonLdHelper
 
   def canonicalize(json)
     graph = RDF::Graph.new << JSON::LD::API.toRdf(json, documentLoader: method(:load_jsonld_context))
-    graph.dump(:normalize)
+
+    begin
+      graph.dump(:normalize)
+    rescue RuntimeError => e
+      # rdf-normalize raises a plain RuntimeError when it gives up on a
+      # pathological document (too many calls); treat it as invalid JSON-LD
+      raise Mastodon::InvalidJsonLdError, e.message
+    end
+  end
+
+  # Checks for unsupported JSON-LD features or too many nodes
+  def check_jsonld_limits!(json, budget = 1_000)
+    budget -= 1
+
+    if json.is_a?(Hash)
+      json.each do |key, value|
+        raise Mastodon::InvalidJsonLdError, 'contains unsupported JSON-LD features' if UNSUPPORTED_JSONLD_KEYWORDS.include?(key)
+        raise Mastodon::InvalidJsonLdError, 'has too many nodes' if budget < 1
+
+        budget = check_jsonld_limits!(value, budget)
+      end
+    elsif json.is_a?(Array)
+      json.each do |value|
+        raise Mastodon::InvalidJsonLdError, 'has too many nodes' if budget < 1
+
+        budget = check_jsonld_limits!(value, budget)
+      end
+    end
+
+    raise Mastodon::InvalidJsonLdError, 'has too many nodes' if budget < 0 # rubocop:disable Style/NumericPredicate
+
+    budget
+  end
+
+  def unsupported_jsonld_features?(json)
+    if json.is_a?(Hash)
+      json.any? { |key, value| UNSUPPORTED_JSONLD_KEYWORDS.include?(key) || unsupported_jsonld_features?(value) }
+    elsif json.is_a?(Array)
+      json.any? { |value| unsupported_jsonld_features?(value) }
+    else
+      false
+    end
   end
 
   def compact(json)
@@ -166,17 +209,22 @@ module JsonLdHelper
       uri = json['id']
     end
 
-    json = fetch_resource_without_id_validation(uri, on_behalf_of)
+    # The final fetch must not follow redirects, otherwise an open redirect on
+    # the origin of `uri` could be used to serve an attacker-controlled
+    # document under that origin's identifier
+    json = fetch_resource_without_id_validation(uri, on_behalf_of, allow_redirects: false)
     json.present? && json['id'] == uri ? json : nil
   end
 
-  def fetch_resource_without_id_validation(uri, on_behalf_of = nil, raise_on_temporary_error = false)
+  def fetch_resource_without_id_validation(uri, on_behalf_of = nil, raise_on_temporary_error = false, allow_redirects: true)
     on_behalf_of ||= Account.representative
 
-    build_request(uri, on_behalf_of).perform do |response|
+    request_options = allow_redirects ? {} : { follow: false }
+
+    build_request(uri, on_behalf_of, options: request_options).perform do |response|
       raise Mastodon::UnexpectedResponseError, response unless response_successful?(response) || response_error_unsalvageable?(response) || !raise_on_temporary_error
 
-      body_to_json(response.body_with_limit) if response.code == 200 && valid_activitypub_content_type?(response)
+      body_to_json(response.body_with_limit) if response.code == 200 && valid_activitypub_content_type?(response) && (allow_redirects || response.uri.to_s == uri)
     end
   end
 
@@ -218,8 +266,8 @@ module JsonLdHelper
     response.code == 501 || ((400...500).cover?(response.code) && ![401, 408, 429].include?(response.code))
   end
 
-  def build_request(uri, on_behalf_of = nil)
-    Request.new(:get, uri).tap do |request|
+  def build_request(uri, on_behalf_of = nil, options: {})
+    Request.new(:get, uri, **options).tap do |request|
       request.on_behalf_of(on_behalf_of) if on_behalf_of
       request.add_headers('Accept' => 'application/activity+json, application/ld+json')
     end

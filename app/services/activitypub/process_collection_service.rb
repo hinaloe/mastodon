@@ -2,14 +2,28 @@
 
 class ActivityPub::ProcessCollectionService < BaseService
   include JsonLdHelper
+  include DomainControlHelper
 
   def call(body, account, **options)
     @account = account
     @json    = original_json = Oj.load(body, mode: :strict)
     @options = options
 
+    return unless @json.is_a?(Hash)
+
     begin
-      @json = compact(@json) if @json['signature'].is_a?(Hash)
+      if @json['signature'].is_a?(Hash)
+        # Check limits before the expensive compaction step
+        check_jsonld_limits!(@json)
+
+        @json = compact(@json)
+      end
+
+      # Unsupported features can be aliased, so re-check after compaction
+      check_jsonld_limits!(@json)
+    rescue Mastodon::InvalidJsonLdError => e
+      Rails.logger.debug "JSON-LD handling for document from #{value_or_id(@json['actor'])} skipped: #{e.message}"
+      @json = original_json.without('signature')
     rescue JSON::LD::JsonLdError => e
       Rails.logger.debug "Error when compacting JSON-LD document for #{value_or_id(@json['actor'])}: #{e.message}"
       @json = original_json.without('signature')
@@ -66,9 +80,14 @@ class ActivityPub::ProcessCollectionService < BaseService
   end
 
   def verify_account!
+    return unless @json['signature'].is_a?(Hash)
+    return if domain_not_allowed?(@json['signature']['creator'])
+
     @options[:relayed_through_account] = @account
     @account = ActivityPub::LinkedDataSignature.new(@json).verify_account!
-  rescue JSON::LD::JsonLdError => e
+    @account = nil unless @account.is_a?(Account)
+    @account
+  rescue JSON::LD::JsonLdError, RDF::WriterError, Mastodon::InvalidJsonLdError => e
     Rails.logger.debug "Could not verify LD-Signature for #{value_or_id(@json['actor'])}: #{e.message}"
     nil
   end

@@ -8,6 +8,8 @@ gem 'rexml', '~> 3.2'
 
 gem 'puma', '~> 5.6'
 gem 'rails', '~> 6.1.6'
+# Same mail series as upstream Mastodon 4.1, the last release on Rails 6.1
+gem 'mail', '~> 2.8.1'
 gem 'sprockets', '~> 3.7.2'
 gem 'thor', '~> 1.2'
 gem 'rack', '~> 2.2.3'
@@ -25,7 +27,8 @@ gem 'kt-paperclip', '~> 7.1'
 gem 'blurhash', '~> 0.1'
 
 gem 'active_model_serializers', '~> 0.10'
-gem 'addressable', '~> 2.8'
+# addressable 2.10 rejects hosts with a port, which Mastodon uses for remote domains
+gem 'addressable', '~> 2.9.1'
 gem 'bootsnap', '~> 1.11.1', require: false
 gem 'browser'
 gem 'charlock_holmes', '~> 0.7.7'
@@ -97,7 +100,7 @@ gem 'webauthn', '~> 3.0.0.alpha1'
 
 gem 'json-ld'
 gem 'json-ld-preloaded', '~> 3.2'
-gem 'rdf-normalize', '~> 0.5'
+gem 'rdf-normalize', '~> 0.6.1'
 
 group :development, :test do
   gem 'fabrication', '~> 2.28'
@@ -106,10 +109,6 @@ group :development, :test do
   gem 'pry-byebug', '~> 3.9'
   gem 'pry-rails', '~> 0.3'
   gem 'rspec-rails', '~> 5.1'
-end
-
-group :production, :test do
-  gem 'private_address_check', '~> 0.5'
 end
 
 group :test do

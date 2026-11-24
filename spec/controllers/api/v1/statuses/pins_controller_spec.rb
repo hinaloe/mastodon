@@ -53,5 +53,18 @@ describe Api::V1::Statuses::PinsController do
         expect(user.account.pinned?(status)).to be false
       end
     end
+
+    describe 'POST #destroy on a private status of another account' do
+      let(:status) { Fabricate(:status, visibility: :private, text: 'secret') }
+
+      before do
+        post :destroy, params: { status_id: status.id }
+      end
+
+      it 'returns http not found without leaking the status' do
+        expect(response).to have_http_status(404)
+        expect(response.body).to_not include('secret')
+      end
+    end
   end
 end

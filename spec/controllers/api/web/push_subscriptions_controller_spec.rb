@@ -93,5 +93,18 @@ describe Api::Web::PushSubscriptionsController do
         expect(push_subscription.data['alerts'][type]).to eq(alerts_payload[:data][:alerts][type.to_sym].to_s)
       end
     end
+
+    it 'does not change settings of a subscription belonging to another user' do
+      other_subscription = Fabricate(:web_push_subscription, user: Fabricate(:user), data: { policy: 'none', alerts: {} })
+
+      sign_in(user)
+
+      alerts_payload[:id] = other_subscription.id
+
+      put :update, format: :json, params: alerts_payload
+
+      expect(response).to have_http_status(404)
+      expect(other_subscription.reload.data['policy']).to eq 'none'
+    end
   end
 end

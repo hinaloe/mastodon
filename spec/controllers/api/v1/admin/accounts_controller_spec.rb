@@ -138,6 +138,34 @@ RSpec.describe Api::V1::Admin::AccountsController, type: :controller do
     end
   end
 
+  describe 'GET #index with a disabled staff member' do
+    let(:user) { Fabricate(:user, role: role, disabled: true) }
+
+    before do
+      get :index
+    end
+
+    it 'returns http forbidden' do
+      expect(response).to have_http_status(403)
+    end
+  end
+
+  describe 'POST #enable on themselves by a disabled staff member' do
+    let(:user) { Fabricate(:user, role: role, disabled: true) }
+
+    before do
+      post :enable, params: { id: user.account.id }
+    end
+
+    it 'returns http forbidden' do
+      expect(response).to have_http_status(403)
+    end
+
+    it 'does not enable the user' do
+      expect(user.reload.disabled?).to be true
+    end
+  end
+
   describe 'POST #enable' do
     before do
       account.user.update(disabled: true)

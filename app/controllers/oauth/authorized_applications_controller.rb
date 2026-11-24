@@ -2,9 +2,11 @@
 
 class Oauth::AuthorizedApplicationsController < Doorkeeper::AuthorizedApplicationsController
   skip_before_action :authenticate_resource_owner!
+  skip_before_action :validate_resource_owner
 
   before_action :store_current_location
   before_action :authenticate_resource_owner!
+  before_action :validate_resource_owner
   before_action :require_not_suspended!, only: :destroy
   before_action :set_body_classes
 
@@ -16,6 +18,7 @@ class Oauth::AuthorizedApplicationsController < Doorkeeper::AuthorizedApplicatio
 
   def destroy
     Web::PushSubscription.unsubscribe_for(params[:id], current_resource_owner)
+    Doorkeeper::Application.find_by(id: params[:id])&.close_streaming_sessions(current_resource_owner)
     super
   end
 

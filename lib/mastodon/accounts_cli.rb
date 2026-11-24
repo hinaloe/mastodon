@@ -156,14 +156,17 @@ module Mastodon
         user.moderator = options[:role] == 'moderator'
       end
 
-      password = SecureRandom.hex if options[:reset_password]
-      user.password = password if options[:reset_password]
       user.email = options[:email] if options[:email]
       user.disabled = false if options[:enable]
       user.disabled = true if options[:disable]
       user.approved = true if options[:approve]
       user.otp_required_for_login = false if options[:disable_2fa]
       user.confirm if options[:confirm]
+
+      # Password changes are a little different, as we also need to ensure
+      # sessions, subscriptions, and access tokens are revoked after changing:
+      password = SecureRandom.hex if options[:reset_password]
+      user.change_password!(password) if options[:reset_password]
 
       if user.save
         say('OK', :green)

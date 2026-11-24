@@ -209,6 +209,18 @@ RSpec.describe Auth::SessionsController, type: :controller do
           end
         end
 
+        context 'using email and any password for an account without a local password' do
+          before do
+            user.update_column(:encrypted_password, '')
+            post :create, params: { user: { email: user.email, password: 'wrong-password' } }
+          end
+
+          it 'does not render two factor authentication page' do
+            expect(controller).to_not render_template("two_factor")
+            expect(session[:attempt_user_id]).to be_nil
+          end
+        end
+
         context 'using email and password after an unfinished log-in attempt to a 2FA-protected account' do
           let!(:other_user) do
             Fabricate(:user, email: 'z@y.com', password: 'abcdefgh', otp_required_for_login: true, otp_secret: User.generate_otp_secret(32))

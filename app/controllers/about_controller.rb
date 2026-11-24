@@ -40,11 +40,11 @@ class AboutController < ApplicationController
   end
 
   def display_blocks?
-    Setting.show_domain_blocks == 'all' || (Setting.show_domain_blocks == 'users' && user_signed_in?)
+    Setting.show_domain_blocks == 'all' || (Setting.show_domain_blocks == 'users' && user_signed_in? && current_user.functional_or_moved?)
   end
 
   def display_blocks_rationale?
-    Setting.show_domain_blocks_rationale == 'all' || (Setting.show_domain_blocks_rationale == 'users' && user_signed_in?)
+    Setting.show_domain_blocks_rationale == 'all' || (Setting.show_domain_blocks_rationale == 'users' && user_signed_in? && current_user.functional_or_moved?)
   end
 
   def new_user

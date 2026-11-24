@@ -8,7 +8,19 @@ class ApplicationPolicy
     @record          = record
   end
 
-  delegate :admin?, :moderator?, :staff?, to: :current_user, allow_nil: true
+  # Disabled users must not keep their staff permissions, as the API does
+  # not otherwise check whether the user is disabled
+  def admin?
+    current_user&.admin? && !current_user.disabled?
+  end
+
+  def moderator?
+    current_user&.moderator? && !current_user.disabled?
+  end
+
+  def staff?
+    current_user&.staff? && !current_user.disabled?
+  end
 
   private
 

@@ -68,10 +68,13 @@ RSpec.describe ActivityPub::ProcessCollectionService, type: :service do
       let(:forwarder) { Fabricate(:account, domain: 'example.com', uri: 'http://example.com/other_account') }
 
       it 'does not process payload if no signature exists' do
-        expect_any_instance_of(ActivityPub::LinkedDataSignature).to receive(:verify_account!).and_return(nil)
-        expect(ActivityPub::Activity).not_to receive(:factory)
+        signature_double = instance_double(ActivityPub::LinkedDataSignature, verify_account!: nil)
+        allow(ActivityPub::LinkedDataSignature).to receive(:new).and_return(signature_double)
+        allow(ActivityPub::Activity).to receive(:factory)
 
         subject.call(json, forwarder)
+
+        expect(ActivityPub::Activity).to_not have_received(:factory)
       end
 
       it 'processes payload with actor if valid signature exists' do
@@ -90,6 +93,64 @@ RSpec.describe ActivityPub::ProcessCollectionService, type: :service do
         expect(ActivityPub::Activity).not_to receive(:factory)
 
         subject.call(json, forwarder)
+      end
+
+      context 'when receiving a status with an unsupported JSON-LD keyword' do
+        let(:payload) do
+          {
+            '@context': 'https://www.w3.org/ns/activitystreams',
+            id: 'foo',
+            type: 'Announce',
+            actor: ActivityPub::TagManager.instance.uri_for(actor),
+            '@reverse': {
+              object: {
+                type: 'Undo',
+                id: 'bar',
+                actor: ActivityPub::TagManager.instance.uri_for(actor),
+              },
+            },
+            object: {
+              id: 'bar',
+              type: 'Note',
+              content: 'Lorem ipsum',
+            },
+            signature: {
+              type: 'RsaSignature2017',
+              creator: "#{ActivityPub::TagManager.instance.uri_for(actor)}#foo",
+              created: '2022-03-09T21:57:25Z',
+              signatureValue: 'foo',
+            },
+          }
+        end
+
+        it 'does not process payload' do
+          signature_double = instance_double(ActivityPub::LinkedDataSignature, verify_account!: nil)
+          allow(ActivityPub::LinkedDataSignature).to receive(:new).and_return(signature_double)
+          allow(ActivityPub::Activity).to receive(:factory)
+
+          subject.call(json, forwarder)
+
+          expect(signature_double).to_not have_received(:verify_account!)
+          expect(ActivityPub::Activity).to_not have_received(:factory)
+        end
+      end
+
+      context 'when receiving a document with too many JSON-LD nodes' do
+        before do
+          payload['signature'] = { 'type' => 'RsaSignature2017' }
+          payload['tag'] = Array.new(1_001) { |i| { 'type' => 'Hashtag', 'name' => "#tag#{i}" } }
+        end
+
+        it 'does not process payload' do
+          signature_double = instance_double(ActivityPub::LinkedDataSignature, verify_account!: nil)
+          allow(ActivityPub::LinkedDataSignature).to receive(:new).and_return(signature_double)
+          allow(ActivityPub::Activity).to receive(:factory)
+
+          subject.call(json, forwarder)
+
+          expect(signature_double).to_not have_received(:verify_account!)
+          expect(ActivityPub::Activity).to_not have_received(:factory)
+        end
       end
 
       context 'when receiving a fabricated status' do

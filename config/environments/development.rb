@@ -88,9 +88,3 @@ Rails.application.configure do
 end
 
 ActiveRecordQueryTrace.enabled = ENV['QUERY_TRACE_ENABLED'] == 'true'
-
-module PrivateAddressCheck
-  def self.private_address?(*)
-    false
-  end
-end

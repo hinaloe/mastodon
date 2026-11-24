@@ -345,7 +345,7 @@ const startWorker = async (workerId) => {
         return;
       }
 
-      client.query('SELECT oauth_access_tokens.id, oauth_access_tokens.resource_owner_id, users.account_id, users.chosen_languages, oauth_access_tokens.scopes, devices.device_id FROM oauth_access_tokens INNER JOIN users ON oauth_access_tokens.resource_owner_id = users.id LEFT OUTER JOIN devices ON oauth_access_tokens.id = devices.access_token_id WHERE oauth_access_tokens.token = $1 AND oauth_access_tokens.revoked_at IS NULL LIMIT 1', [token], (err, result) => {
+      client.query('SELECT oauth_access_tokens.id, oauth_access_tokens.resource_owner_id, users.account_id, users.chosen_languages, oauth_access_tokens.scopes, devices.device_id FROM oauth_access_tokens INNER JOIN users ON oauth_access_tokens.resource_owner_id = users.id INNER JOIN accounts ON accounts.id = users.account_id LEFT OUTER JOIN devices ON oauth_access_tokens.id = devices.access_token_id WHERE oauth_access_tokens.token = $1 AND oauth_access_tokens.revoked_at IS NULL AND users.disabled IS FALSE AND accounts.suspended_at IS NULL LIMIT 1', [token], (err, result) => {
         done();
 
         if (err) {
@@ -451,8 +451,10 @@ const startWorker = async (workerId) => {
   const checkScopes = (req, channelName) => new Promise((resolve, reject) => {
     log.silly(req.requestId, `Checking OAuth scopes for ${channelName}`);
 
-    // When accessing public channels, no scopes are needed
-    if (PUBLIC_CHANNELS.includes(channelName)) {
+    // When accessing public channels anonymously, no scopes are needed.
+    // When an access token is presented, it must have a read scope, so that
+    // tokens without read access cannot be used to read public timelines.
+    if (PUBLIC_CHANNELS.includes(channelName) && !req.accessTokenId) {
       resolve();
       return;
     }
@@ -531,7 +533,8 @@ const startWorker = async (workerId) => {
    * @param {any} res
    */
   const subscribeHttpToSystemChannel = (req, res) => {
-    const systemChannelId = `timeline:access_token:${req.accessTokenId}`;
+    const accessTokenChannelId = `timeline:access_token:${req.accessTokenId}`;
+    const systemChannelId = `timeline:system:${req.accountId}`;
 
     const listener = createSystemMessageListener(req, {
 
@@ -542,10 +545,20 @@ const startWorker = async (workerId) => {
     });
 
     res.on('close', () => {
-      unsubscribe(`${redisPrefix}${systemChannelId}`, listener);
+      unsubscribe(`${redisPrefix}${accessTokenChannelId}`, listener);
+
+      if (req.accountId) {
+        unsubscribe(`${redisPrefix}${systemChannelId}`, listener);
+      }
     });
 
-    subscribe(`${redisPrefix}${systemChannelId}`, listener);
+    subscribe(`${redisPrefix}${accessTokenChannelId}`, listener);
+
+    // Also listen to account-wide system messages (e.g. the account being
+    // disabled or suspended), but only for authenticated connections
+    if (req.accountId) {
+      subscribe(`${redisPrefix}${systemChannelId}`, listener);
+    }
   };
 
   /**
@@ -1026,7 +1039,13 @@ const startWorker = async (workerId) => {
    * @param {WebSocketSession} session
    */
   const subscribeWebsocketToSystemChannel = ({ socket, request, subscriptions }) => {
-    const systemChannelId = `timeline:access_token:${request.accessTokenId}`;
+    const channelIds = [`timeline:access_token:${request.accessTokenId}`];
+
+    // Also listen to account-wide system messages (e.g. the account being
+    // disabled or suspended), but only for authenticated connections
+    if (request.accountId) {
+      channelIds.push(`timeline:system:${request.accountId}`);
+    }
 
     const listener = createSystemMessageListener(request, {
 
@@ -1036,9 +1055,11 @@ const startWorker = async (workerId) => {
 
     });
 
-    subscribe(`${redisPrefix}${systemChannelId}`, listener);
+    channelIds.forEach(channelId => {
+      subscribe(`${redisPrefix}${channelId}`, listener);
+    });
 
-    subscriptions[systemChannelId] = {
+    subscriptions[channelIds.join(';')] = {
       listener,
       stopHeartbeat: () => {
       },

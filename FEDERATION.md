@@ -28,3 +28,20 @@ More information on HTTP Signatures, as well as examples, can be found here: htt
 - Linked-Data Signatures: https://docs.joinmastodon.org/spec/security/#ld
 - Bearcaps: https://docs.joinmastodon.org/spec/bearcaps/
 - Followers collection synchronization: https://git.activitypub.dev/ActivityPubDev/Fediverse-Enhancement-Proposals/src/branch/main/feps/fep-8fcf.md
+
+## Size limits
+
+Mastodon imposes a few hard limits on federated content.
+These limits are intended to be very generous and way above what the Mastodon user experience is optimized for, so as to accomodate future changes and unusual or unforeseen usage patterns, while still providing some limits for performance reasons.
+The following table attempts to summary those limits.
+
+| Limited property                                              | Size limit | Consequence of exceeding the limit |
+| ------------------------------------------------------------- | ---------- | ---------------------------------- |
+| Serialized JSON-LD                                            | 1MB        | **Activity is rejected/dropped**   |
+| Number of profile fields (actor `PropertyValue` attachments)  | 50         | Fields list is truncated           |
+| Poll options (number of `anyOf`/`oneOf` in a `Question`)      | 500        | Items list is truncated            |
+| Account username (actor `preferredUsername`) length           | 2048       | **Actor will be rejected**         |
+| Account display name (actor `name`) length                    | 2048       | Display name will be truncated     |
+| Account note (actor `summary`) length                         | 20kB       | Account note will be truncated     |
+| Account aliases (actor `alsoKnownAs`)                         | 256        | List will be truncated             |
+| Custom emoji shortcode (`Emoji` `name`)                       | 2048       | Emoji will be rejected             |
