@@ -181,7 +181,11 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
   end
 
   def update_tags!
-    @status.tags = Tag.find_or_create_by_names(@raw_tags)
+    @status.tags = @raw_tags.flat_map do |tag|
+      Tag.find_or_create_by_names([tag]).filter(&:valid?)
+    rescue ActiveRecord::RecordInvalid
+      []
+    end.uniq
   end
 
   def update_mentions!

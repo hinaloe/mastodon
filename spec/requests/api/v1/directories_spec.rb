@@ -89,8 +89,8 @@ describe 'Directories API' do
 
     context 'when asking for local accounts only' do
       let(:user) { Fabricate(:user, confirmed_at: 10.days.ago, approved: true) }
-      let(:local_account) { Fabricate(:account, domain: nil, user: user) }
-      let(:remote_account) { Fabricate(:account, domain: 'host.example') }
+      let(:local_account) { Fabricate(:account, domain: nil, user: user, discoverable: true) }
+      let(:remote_account) { Fabricate(:account, domain: 'host.example', discoverable: true) }
 
       before do
         local_account.create_account_stat!
@@ -109,8 +109,8 @@ describe 'Directories API' do
 
     context 'when ordered by active' do
       it 'returns accounts in order of most recent status activity' do
-        old_stat = Fabricate(:account_stat, last_status_at: 1.day.ago)
-        new_stat = Fabricate(:account_stat, last_status_at: 1.minute.ago)
+        old_stat = Fabricate(:account_stat, account: Fabricate.build(:account, discoverable: true), last_status_at: 1.day.ago)
+        new_stat = Fabricate(:account_stat, account: Fabricate.build(:account, discoverable: true), last_status_at: 1.minute.ago)
 
         get '/api/v1/directory', headers: headers, params: { order: 'active' }
 
@@ -123,9 +123,9 @@ describe 'Directories API' do
 
     context 'when ordered by new' do
       it 'returns accounts in order of creation' do
-        account_old = Fabricate(:account_stat).account
+        account_old = Fabricate(:account_stat, account: Fabricate.build(:account, discoverable: true)).account
         travel_to 10.seconds.from_now
-        account_new = Fabricate(:account_stat).account
+        account_new = Fabricate(:account_stat, account: Fabricate.build(:account, discoverable: true)).account
 
         get '/api/v1/directory', headers: headers, params: { order: 'new' }
 

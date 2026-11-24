@@ -134,24 +134,72 @@ RSpec.describe Tag, type: :model do
     end
   end
 
+  describe '.find_or_create_by_names' do
+    it 'returns an unsaved, invalid tag for an invalid name instead of raising' do
+      tags = described_class.find_or_create_by_names(['valid_tag', '#2024'])
+
+      expect(tags.map(&:name)).to eq %w(valid_tag 2024)
+      expect(tags.first).to be_persisted
+      expect(tags.last).to_not be_persisted
+      expect(tags.last).to_not be_valid
+    end
+  end
+
   describe '.find_or_create_by_names race condition' do
-    it 'handles simultaneous inserts of the same tag in different cases without error' do
-      tag_name_upper = 'Rails'
-      tag_name_lower = 'rails'
+    # Under transactional fixtures every thread shares the test connection
+    # and its transaction, so the unique violation aborts the whole test
+    # transaction. Each thread needs its own connection, and rows have to be
+    # committed for the unique index to see them.
+    self.use_transactional_tests = false
 
-      threads = []
+    let(:names) { %w(Rails rails) }
 
-      2.times do |i|
-        threads << Thread.new do
-          described_class.find_or_create_by_names(i.zero? ? tag_name_upper : tag_name_lower)
+    after do
+      described_class.where('lower(name) = ?', 'rails').delete_all
+    end
+
+    # Hold every thread right before its INSERT until all of them have done
+    # the initial lookup, so that they actually collide on the unique index.
+    def find_or_create_concurrently(outer_transaction: false)
+      barrier = Concurrent::CyclicBarrier.new(names.size)
+
+      allow(described_class).to receive(:create).and_wrap_original do |original, *args|
+        barrier.wait(5)
+        original.call(*args)
+      end
+
+      threads = names.map do |name|
+        Thread.new do
+          Chewy.strategy(:bypass) do
+            described_class.connection_pool.with_connection do
+              if outer_transaction
+                described_class.transaction { described_class.find_or_create_by_names(name) }
+              else
+                described_class.find_or_create_by_names(name)
+              end
+            end
+          end
         end
       end
 
-      threads.each(&:join)
+      threads.flat_map(&:value)
+    end
 
-      tags = described_class.where('lower(name) = ?', tag_name_lower.downcase)
+    it 'handles simultaneous inserts of the same tag in different cases without error' do
+      results = find_or_create_concurrently
+
+      tags = described_class.where('lower(name) = ?', 'rails')
       expect(tags.count).to eq(1)
-      expect(tags.first.name.downcase).to eq(tag_name_lower.downcase)
+      expect(results).to all(be_persisted)
+      expect(results.map(&:id).uniq).to eq [tags.first.id]
+    end
+
+    it 'recovers from the unique violation inside an enclosing transaction' do
+      results = find_or_create_concurrently(outer_transaction: true)
+
+      tags = described_class.where('lower(name) = ?', 'rails')
+      expect(tags.count).to eq(1)
+      expect(results.map(&:id).uniq).to eq [tags.first.id]
     end
   end
 
