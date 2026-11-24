@@ -5,6 +5,7 @@ class ActivityPub::CollectionsController < ActivityPub::BaseController
   include AccountOwnedConcern
 
   before_action :require_signature!, if: :authorized_fetch_mode?
+  before_action :check_authorization
   before_action :set_items
   before_action :set_size
   before_action :set_type
@@ -12,10 +13,23 @@ class ActivityPub::CollectionsController < ActivityPub::BaseController
 
   def show
     expires_in 3.minutes, public: public_fetch_mode?
-    render_with_cache json: collection_presenter, content_type: 'application/activity+json', serializer: ActivityPub::CollectionSerializer, adapter: ActivityPub::Adapter
+
+    if @unauthorized
+      render json: collection_presenter, content_type: 'application/activity+json', serializer: ActivityPub::CollectionSerializer, adapter: ActivityPub::Adapter
+    else
+      render_with_cache json: collection_presenter, content_type: 'application/activity+json', serializer: ActivityPub::CollectionSerializer, adapter: ActivityPub::Adapter
+    end
   end
 
   private
+
+  def check_authorization
+    # Because in public fetch mode we cache the response, there would be no
+    # benefit from performing the check below, since a blocked account or domain
+    # would likely be served the cache from the reverse proxy anyway
+
+    @unauthorized = authorized_fetch_mode? && !signed_request_account.nil? && (@account.blocking?(signed_request_account) || (!signed_request_account.domain.nil? && @account.domain_blocking?(signed_request_account.domain)))
+  end
 
   def set_items
     case params[:id]
@@ -61,11 +75,7 @@ class ActivityPub::CollectionsController < ActivityPub::BaseController
   end
 
   def for_signed_account
-    # Because in public fetch mode we cache the response, there would be no
-    # benefit from performing the check below, since a blocked account or domain
-    # would likely be served the cache from the reverse proxy anyway
-
-    if authorized_fetch_mode? && !signed_request_account.nil? && (@account.blocking?(signed_request_account) || (!signed_request_account.domain.nil? && @account.domain_blocking?(signed_request_account.domain)))
+    if @unauthorized
       []
     else
       yield
