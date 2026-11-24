@@ -10,6 +10,20 @@ RSpec.describe ActivityPub::InboxesController, type: :controller do
   end
 
   describe 'POST #create' do
+    context 'with a payload over the size limit' do
+      let(:remote_account) { Fabricate(:account, domain: 'example.com', protocol: :activitypub) }
+
+      before do
+        stub_const('ActivityPub::Activity::MAX_JSON_SIZE', 1.byte)
+        request.env['CONTENT_LENGTH'] = '1024'
+        post :create, body: '{"foo": "bar"}'
+      end
+
+      it 'returns http payload too large' do
+        expect(response).to have_http_status(413)
+      end
+    end
+
     context 'with signature' do
       let(:remote_account) { Fabricate(:account, domain: 'example.com', protocol: :activitypub) }
 

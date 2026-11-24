@@ -65,6 +65,12 @@ class Account < ApplicationRecord
   MENTION_RE    = %r{(?<![=/[:word:]])@((#{USERNAME_RE})(?:@[[:word:]]+([.-]+[[:word:]]+)*)?)}
   URL_PREFIX_RE = %r{\Ahttp(s?)://[^/]+}
 
+  # Hard limits for federated content
+  USERNAME_LENGTH_HARD_LIMIT = 2048
+  DISPLAY_NAME_LENGTH_HARD_LIMIT = 2048
+  NOTE_LENGTH_HARD_LIMIT = 20.kilobytes
+  ALSO_KNOWN_AS_HARD_LIMIT = 256
+
   include Attachmentable
   include AccountAssociations
   include AccountAvatar
@@ -84,7 +90,7 @@ class Account < ApplicationRecord
   validates_with UniqueUsernameValidator, if: -> { will_save_change_to_username? }
 
   # Remote user validations
-  validates :username, format: { with: /\A#{USERNAME_RE}\z/i }, if: -> { !local? && will_save_change_to_username? }
+  validates :username, format: { with: /\A#{USERNAME_RE}\z/i }, length: { maximum: USERNAME_LENGTH_HARD_LIMIT }, if: -> { !local? && will_save_change_to_username? }
 
   # Local user validations
   validates :username, format: { with: /\A[a-z0-9_]+\z/i }, length: { maximum: 30 }, if: -> { local? && will_save_change_to_username? && actor_type != 'Application' }
