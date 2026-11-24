@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
 # This Dockerfile requires BuildKit (default since Docker Engine 23).
 #
@@ -16,8 +16,11 @@ ARG UBUNTU_VERSION="26.04"
 ARG RUBY_VERSION="3.4.13"
 ARG RUBY_SHA256="d0d3bf3dd8c224a3c3b7ecd816a0f1b2cbcf4f87b5afcbdbe91d3fef177f351a"
 
-# Node.js version, change with [--build-arg NODE_VERSION="26.x.y"]
+# Node.js version, change with [--build-arg NODE_VERSION="26.x.y"] and the matching
+# SHA-256 of node-v<version>-linux-{x64,arm64}.tar.xz from SHASUMS256.txt
 ARG NODE_VERSION="26.13.1"
+ARG NODE_SHA256_AMD64="5c063e46bab0fbc1c17cc445d7ff129cbdcd0471be6ed83b6ab864f8143bc864"
+ARG NODE_SHA256_ARM64="89e1853138db51e8b82d3e98ba9c0d3f2956a28e5e55ea1b7e12d25aae92d5dd"
 ARG YARN_VERSION="1.22.22"
 
 FROM ubuntu:${UBUNTU_VERSION} AS base
@@ -76,6 +79,8 @@ RUN \
 FROM base AS node
 
 ARG NODE_VERSION
+ARG NODE_SHA256_AMD64
+ARG NODE_SHA256_ARM64
 ARG YARN_VERSION
 ARG TARGETARCH
 ARG TARGETPLATFORM
@@ -94,19 +99,16 @@ RUN \
 
 RUN \
   case "${TARGETARCH}" in \
-    amd64) ARCH='x64';; \
-    arm64) ARCH='arm64';; \
-    ppc64le) ARCH='ppc64le';; \
-    s390x) ARCH='s390x';; \
+    amd64) ARCH='x64'; NODE_SHA256="${NODE_SHA256_AMD64}";; \
+    arm64) ARCH='arm64'; NODE_SHA256="${NODE_SHA256_ARM64}";; \
     *) echo "unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
   esac; \
   cd /tmp; \
   wget -q "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz"; \
-  wget -q "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt"; \
-  grep " node-v${NODE_VERSION}-linux-${ARCH}.tar.xz\$" SHASUMS256.txt | sha256sum -c -; \
+  echo "${NODE_SHA256}  node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" | sha256sum -c -; \
   mkdir -p /opt/node; \
   tar xf "node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" -C /opt/node --strip-components=1; \
-  rm -f /tmp/node-* /tmp/SHASUMS256.txt; \
+  rm -f /tmp/node-*; \
   # Corepack is no longer bundled with Node.js, so install Yarn v1 with npm
   PATH="/opt/node/bin:${PATH}" npm install -g "yarn@${YARN_VERSION}"; \
   PATH="/opt/node/bin:${PATH}" npm cache clean --force
