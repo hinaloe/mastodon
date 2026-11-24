@@ -528,7 +528,7 @@ GEM
     rake (13.0.6)
     rdf (3.2.3)
       link_header (~> 0.0, >= 0.0.8)
-    rdf-normalize (0.5.0)
+    rdf-normalize (0.6.1)
       rdf (~> 3.2)
     redis (4.5.1)
     redis-namespace (1.8.2)
@@ -813,7 +813,7 @@ DEPENDENCIES
   rails-controller-testing (~> 1.0)
   rails-i18n (~> 6.0)
   rails-settings-cached (~> 0.6)
-  rdf-normalize (~> 0.5)
+  rdf-normalize (~> 0.6.1)
   redis (~> 4.5)
   redis-namespace (~> 1.8)
   rexml (~> 3.2)
@@ -847,3 +847,4 @@ DEPENDENCIES
   webpacker (~> 5.4)
   webpush (~> 0.3)
   xorcist (~> 1.1)
+

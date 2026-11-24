@@ -2,6 +2,7 @@
 
 module Mastodon
   class Error < StandardError; end
+  class InvalidJsonLdError < Error; end
   class NotPermittedError < Error; end
   class ValidationError < Error; end
   class HostValidationError < ValidationError; end

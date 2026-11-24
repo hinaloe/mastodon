@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module JsonLdHelper
+  UNSUPPORTED_JSONLD_KEYWORDS = %w(@graph @included @reverse).freeze
+
   include ContextHelper
 
   def equals_or_includes?(haystack, needle)
@@ -77,6 +79,40 @@ module JsonLdHelper
   def canonicalize(json)
     graph = RDF::Graph.new << JSON::LD::API.toRdf(json, documentLoader: method(:load_jsonld_context))
     graph.dump(:normalize)
+  end
+
+  # Checks for unsupported JSON-LD features or too many nodes
+  def check_jsonld_limits!(json, budget = 1_000)
+    budget -= 1
+
+    if json.is_a?(Hash)
+      json.each do |key, value|
+        raise Mastodon::InvalidJsonLdError, 'contains unsupported JSON-LD features' if UNSUPPORTED_JSONLD_KEYWORDS.include?(key)
+        raise Mastodon::InvalidJsonLdError, 'has too many nodes' if budget < 1
+
+        budget = check_jsonld_limits!(value, budget)
+      end
+    elsif json.is_a?(Array)
+      json.each do |value|
+        raise Mastodon::InvalidJsonLdError, 'has too many nodes' if budget < 1
+
+        budget = check_jsonld_limits!(value, budget)
+      end
+    end
+
+    raise Mastodon::InvalidJsonLdError, 'has too many nodes' if budget < 0 # rubocop:disable Style/NumericPredicate
+
+    budget
+  end
+
+  def unsupported_jsonld_features?(json)
+    if json.is_a?(Hash)
+      json.any? { |key, value| UNSUPPORTED_JSONLD_KEYWORDS.include?(key) || unsupported_jsonld_features?(value) }
+    elsif json.is_a?(Array)
+      json.any? { |value| unsupported_jsonld_features?(value) }
+    else
+      false
+    end
   end
 
   def compact(json)
