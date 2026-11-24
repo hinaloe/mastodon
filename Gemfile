@@ -108,10 +108,6 @@ group :development, :test do
   gem 'rspec-rails', '~> 5.1'
 end
 
-group :production, :test do
-  gem 'private_address_check', '~> 0.5'
-end
-
 group :test do
   gem 'capybara', '~> 3.37'
   gem 'climate_control', '~> 0.2'
