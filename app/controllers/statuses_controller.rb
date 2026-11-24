@@ -75,7 +75,10 @@ class StatusesController < ApplicationController
   end
 
   def redirect_to_original
-    redirect_to ActivityPub::TagManager.instance.url_for(@status.reblog) if @status.reblog?
+    return unless @status.reblog?
+
+    url = ActivityPub::TagManager.instance.url_for(@status.reblog)
+    url.nil? ? not_found : redirect_to(url)
   end
 
   def set_referrer_policy_header

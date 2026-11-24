@@ -10,6 +10,16 @@ RSpec.describe ActivityPub::TagManager do
       account = Fabricate(:account)
       expect(subject.url_for(account)).to be_a String
     end
+
+    it 'returns the URL of a remote status with an http(s) URL' do
+      status = Fabricate(:status, account: Fabricate(:account, domain: 'example.com'), uri: 'https://example.com/statuses/1', url: 'https://example.com/@foo/1')
+      expect(subject.url_for(status)).to eq 'https://example.com/@foo/1'
+    end
+
+    it 'returns nil for a remote status with an unsupported URL scheme' do
+      status = Fabricate(:status, account: Fabricate(:account, domain: 'example.com'), uri: 'https://example.com/statuses/2', url: 'javascript:alert(1)')
+      expect(subject.url_for(status)).to be_nil
+    end
   end
 
   describe '#uri_for' do
