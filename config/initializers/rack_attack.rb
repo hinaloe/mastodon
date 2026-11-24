@@ -33,6 +33,10 @@ class Rack::Attack
       authenticated_token&.resource_owner_id
     end
 
+    def warden_user_id
+      @env['warden']&.user&.id
+    end
+
     def unauthenticated?
       !authenticated_user_id
     end
@@ -119,6 +123,10 @@ class Rack::Attack
     elsif req.post? && req.path == '/api/v1/emails/confirmations'
       req.authenticated_user_id
     end
+  end
+
+  throttle('throttle_password_change/account', limit: 10, period: 10.minutes) do |req|
+    req.warden_user_id if (req.put? || req.patch?) && (req.path_matches?('/auth') || req.path_matches?('/auth/password'))
   end
 
   throttle('throttle_login_attempts/ip', limit: 25, period: 5.minutes) do |req|
