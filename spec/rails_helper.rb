@@ -33,6 +33,12 @@ Devise::Test::ControllerHelpers.module_eval do
 end
 
 RSpec.configure do |config|
+  # Rails 8.0 loads routes lazily in tests, which leaves Devise without its
+  # mappings (heartcombo/devise#5705), as upstream does
+  config.before do
+    Rails.application.reload_routes_unless_loaded
+  end
+
   config.fixture_paths = ["#{::Rails.root}/spec/fixtures"]
   config.use_transactional_fixtures = true
   config.order = 'random'

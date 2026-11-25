@@ -55,8 +55,9 @@ RSpec.describe ActivityPub::OutboxesController, type: :controller do
 
         it_behaves_like 'cacheable response'
 
-        it 'does not have a Vary header' do
-          expect(response.headers['Vary']).to be_nil
+        # Rails 8 adds `Vary: Accept, X-Requested-With` to negotiated responses
+        it 'does not vary on Signature' do
+          expect(response.headers['Vary'].to_s).to_not include 'Signature'
         end
 
         context 'when account is permanently suspended' do

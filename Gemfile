@@ -7,7 +7,7 @@ gem 'pkg-config', '~> 1.4'
 gem 'rexml', '~> 3.2'
 
 gem 'puma', '~> 5.6'
-gem 'rails', '~> 7.2.3'
+gem 'rails', '~> 8.0.5'
 # Same mail series as upstream Mastodon 4.1, the last release on Rails 6.1
 gem 'mail', '~> 2.8.1'
 gem 'sprockets', '~> 3.7.2'
@@ -16,7 +16,7 @@ gem 'rack', '~> 2.2.3'
 
 gem 'hamlit-rails', '~> 0.2'
 gem 'pg', '~> 1.3'
-gem 'pghero', '~> 2.8'
+gem 'pghero', '~> 3.8'
 gem 'dotenv-rails', '~> 2.7'
 
 gem 'aws-sdk-s3', '~> 1.114', require: false
@@ -71,7 +71,7 @@ gem 'pundit', '~> 2.2'
 gem 'premailer-rails'
 gem 'rack-attack', '~> 6.6'
 gem 'rack-cors', '~> 1.1', require: 'rack/cors'
-gem 'rails-i18n', '~> 7.0'
+gem 'rails-i18n', '~> 8.0'
 # Same fork as upstream Mastodon 4.2, which allows YAML aliases in config/settings.yml on Psych 4
 gem 'rails-settings-cached', '~> 0.6', git: 'https://github.com/mastodon/rails-settings-cached.git', ref: '86328ef0bd04ce21cc0504ff5e334591e8c2ccab'
 gem 'redis', '~> 4.5', require: ['redis', 'redis/connection/hiredis']
@@ -88,7 +88,7 @@ gem 'simple-navigation', '~> 4.3'
 gem 'simple_form', '~> 5.1'
 gem 'sprockets-rails', '~> 3.4', require: 'sprockets/railtie'
 gem 'stoplight', '~> 3.0.0'
-gem 'strong_migrations', '~> 0.7'
+gem 'strong_migrations', '~> 2.8'
 gem 'tty-prompt', '~> 0.23', require: false
 gem 'twitter-text', '~> 3.1.0'
 gem 'tzinfo-data', '~> 1.2022'
@@ -107,7 +107,7 @@ group :development, :test do
   gem 'i18n-tasks', '~> 1.0', require: false
   gem 'pry-byebug', '~> 3.9'
   gem 'pry-rails', '~> 0.3'
-  gem 'rspec-rails', '~> 7.1'
+  gem 'rspec-rails', '~> 8.0'
 end
 
 group :test do
@@ -124,10 +124,10 @@ end
 
 group :development do
   gem 'active_record_query_trace', '~> 1.8'
-  gem 'annotate', '~> 3.2'
+  gem 'annotaterb', '~> 4.26'
   gem 'better_errors', '~> 2.9'
   gem 'binding_of_caller', '~> 1.0'
-  gem 'bullet', '~> 7.0'
+  gem 'bullet', '~> 8.0'
   gem 'letter_opener', '~> 1.8'
   gem 'letter_opener_web', '~> 2.0'
   gem 'memory_profiler'
