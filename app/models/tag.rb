@@ -149,6 +149,6 @@ class Tag < ApplicationRecord
   private
 
   def validate_name_change
-    errors.add(:name, I18n.t('tags.does_not_match_previous_name')) unless name_was.casecmp?(name)
+    errors.add(:name, I18n.t('tags.does_not_match_previous_name')) unless name_was.casecmp(name).zero?
   end
 end
