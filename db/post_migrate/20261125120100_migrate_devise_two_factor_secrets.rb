@@ -32,7 +32,8 @@ class MigrateDeviseTwoFactorSecrets < ActiveRecord::Migration[7.2]
 
       user.update!(otp_secret: otp_secret)
 
-      # Make sure the stored value can be read back with the configured keys
+      # Make sure the stored value can be read back with this process's keys.
+      # This does not check that web and sidekiq use the same keys.
       abort_with_verification_error(user) unless MigrationUser.find(user.id)[:otp_secret] == otp_secret
     end
   end
@@ -50,10 +51,11 @@ class MigrateDeviseTwoFactorSecrets < ActiveRecord::Migration[7.2]
   def abort_with_verification_error(user)
     abort <<~MESSAGE
 
-      ERROR: The OTP secret stored for user #{user.id} could not be read back.
+      ERROR: The OTP secret stored for user #{user.id} could not be read back with the
+      Active Record Encryption settings of this process.
 
-      Check that the ACTIVE_RECORD_ENCRYPTION_* variables are set to the same values for this
-      migration and for the web and sidekiq processes, then run the migration again.
+      Check the ACTIVE_RECORD_ENCRYPTION_* variables, then run the migration again. Make sure
+      the web, sidekiq and tootctl processes use the same values: this migration cannot check that.
 
       Migration aborted.
     MESSAGE
