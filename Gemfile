@@ -7,7 +7,7 @@ gem 'pkg-config', '~> 1.4'
 gem 'rexml', '~> 3.2'
 
 gem 'puma', '~> 5.6'
-gem 'rails', '~> 8.0.5'
+gem 'rails', '~> 8.1.4'
 # Same mail series as upstream Mastodon 4.1, the last release on Rails 6.1
 gem 'mail', '~> 2.8.1'
 gem 'sprockets', '~> 3.7.2'
