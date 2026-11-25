@@ -20,7 +20,7 @@ module Mastodon
     end
 
     def reset_connection_pools!
-      ActiveRecord::Base.establish_connection(ActiveRecord::Base.configurations[Rails.env].dup.tap { |config| config['pool'] = options[:concurrency] + 1 })
+      ActiveRecord::Base.establish_connection(ActiveRecord::Base.connection_db_config.configuration_hash.merge(pool: options[:concurrency] + 1))
       RedisConfiguration.establish_pool(options[:concurrency])
     end
 

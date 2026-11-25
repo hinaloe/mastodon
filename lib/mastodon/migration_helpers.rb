@@ -864,8 +864,8 @@ module Mastodon
 
     def check_trigger_permissions!(table)
       unless Grant.create_and_execute_trigger?(table)
-        dbname = ActiveRecord::Base.configurations[Rails.env]['database']
-        user = ActiveRecord::Base.configurations[Rails.env]['username'] || ENV['USER']
+        dbname = ActiveRecord::Base.connection_db_config.database
+        user = ActiveRecord::Base.connection_db_config.configuration_hash[:username] || ENV['USER']
 
         raise <<-EOF
 Your database user is not allowed to create, drop, or execute triggers on the
