@@ -1,16 +1,9 @@
 # frozen_string_literal: true
 
-# Rails 7.0 derives the cookie keys with SHA256 instead of SHA1. Switching
-# directly would sign every user out, and cookies set by one version could not
-# be read by the other during a rolling deploy.
-#
-# Keep SHA1 for now and accept cookies made with SHA256, so this release can
-# read cookies from the next one. In a later release, switch to SHA256 and
-# rotate SHA1 instead (as upstream did in #26023).
-Rails.application.configure do
-  config.active_support.key_generator_hash_digest_class = OpenSSL::Digest::SHA1
-end
-
+# Cookie keys are now derived with SHA256, the Rails 7.0 default. Cookies set
+# by the previous releases were derived with SHA1: keep accepting them so
+# users are not signed out. This rotation can be removed once those cookies
+# have expired.
 Rails.application.config.after_initialize do
   Rails.application.config.action_dispatch.cookies_rotations.tap do |cookies|
     authenticated_encrypted_cookie_salt = Rails.application.config.action_dispatch.authenticated_encrypted_cookie_salt
@@ -19,7 +12,7 @@ Rails.application.config.after_initialize do
     secret_key_base = Rails.application.secret_key_base
 
     key_generator = ActiveSupport::KeyGenerator.new(
-      secret_key_base, iterations: 1000, hash_digest_class: OpenSSL::Digest::SHA256
+      secret_key_base, iterations: 1000, hash_digest_class: OpenSSL::Digest::SHA1
     )
     key_len = ActiveSupport::MessageEncryptor.key_len
 
