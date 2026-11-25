@@ -34,11 +34,7 @@ REDIS_CACHE_PARAMS = {
   driver: :hiredis,
   url: ENV['CACHE_REDIS_URL'],
   expires_in: 10.minutes,
-  # The Rails 7.1 defaults change how cache entries and the Active Record
-  # objects in them are serialized, in ways older versions cannot read. Use a
-  # new namespace so processes of both versions never share entries during a
-  # deploy or a rollback (upstream #28609). The cache starts empty.
-  namespace: "#{cache_namespace}:7.1",
+  namespace: cache_namespace,
   pool: {
     size: Sidekiq.server? ? Sidekiq[:concurrency] : Integer(ENV['MAX_THREADS'] || 5),
     timeout: 5,
