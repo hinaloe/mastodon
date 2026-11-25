@@ -3,11 +3,11 @@
 // it will execute in the same tick of the event loop (i.e. near-instant).
 
 function importBasePolyfills() {
-  return import(/* webpackChunkName: "base_polyfills" */ './base_polyfills');
+  return import('./base_polyfills');
 }
 
 function importExtraPolyfills() {
-  return import(/* webpackChunkName: "extra_polyfills" */ './extra_polyfills');
+  return import('./extra_polyfills');
 }
 
 function loadPolyfills() {

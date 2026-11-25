@@ -222,6 +222,7 @@ GEM
       dotenv (= 2.8.1)
       railties (>= 3.2)
     drb (2.2.3)
+    dry-cli (1.4.1)
     ed25519 (1.4.0)
     elasticsearch (7.17.11)
       elasticsearch-api (= 7.17.11)
@@ -537,8 +538,8 @@ GEM
       httpclient
       json-jwt (>= 1.11.0)
       rack (>= 2.1.0)
-    rack-proxy (0.8.3)
-      rack
+    rack-proxy (2.0.2)
+      rack (>= 2.0, < 4)
     rack-test (1.1.0)
       rack (>= 1.0, < 3)
     rails (6.1.7.10)
@@ -662,7 +663,6 @@ GEM
     scenic (1.9.0)
       activerecord (>= 4.0.0)
       railties (>= 4.0.0)
-    semantic_range (3.1.1)
     sidekiq (6.5.12)
       connection_pool (>= 2.2.5, < 3)
       rack (~> 2.0)
@@ -759,6 +759,15 @@ GEM
     validate_url (1.0.15)
       activemodel (>= 3.0.0)
       public_suffix
+    vite_rails (3.11.1)
+      railties (>= 5.1, < 9)
+      vite_ruby (~> 3.0, >= 3.2.2)
+    vite_ruby (3.11.1)
+      dry-cli (>= 0.7, < 2)
+      logger (~> 1.6)
+      mutex_m
+      rack-proxy (>= 0.6.1)
+      zeitwerk (~> 2.2)
     warden (1.2.9)
       rack (>= 2.0.9)
     webauthn (3.5.1)
@@ -776,11 +785,6 @@ GEM
       addressable (>= 2.8.0)
       crack (>= 0.3.2)
       hashdiff (>= 0.4.0, < 2.0.0)
-    webpacker (5.4.4)
-      activesupport (>= 5.2)
-      rack-proxy (>= 0.6.1)
-      railties (>= 5.2)
-      semantic_range (>= 2.3.0)
     websocket-driver (0.9.0)
       base64
       websocket-extensions (>= 0.2.0)
@@ -921,9 +925,9 @@ DEPENDENCIES
   tty-prompt (~> 0.23)
   twitter-text (~> 3.1.0)
   tzinfo-data (~> 1.2022)
+  vite_rails (~> 3.11)
   webauthn (~> 3.0)
   webmock (~> 3.14)
-  webpacker (~> 5.4)
   webpush!
   xorcist (~> 1.1)
 

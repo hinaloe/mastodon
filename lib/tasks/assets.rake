@@ -14,7 +14,10 @@ end
 
 if Rake::Task.task_defined?('assets:precompile')
   Rake::Task['assets:precompile'].enhance do
-    Webpacker.manifest.refresh
+    ViteRuby.instance.manifest.refresh
     Rake::Task['assets:generate_static_pages'].invoke
   end
 end
+
+# Dependencies are installed with `yarn install` in a separate step
+Rake::Task['vite:install_dependencies'].clear if Rake::Task.task_defined?('vite:install_dependencies')

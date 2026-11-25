@@ -1,11 +1,11 @@
-import './public-path';
 import loadPolyfills from '../mastodon/load_polyfills';
 import { start } from '../mastodon/common';
+import main from '../mastodon/main';
 
 start();
 
 loadPolyfills().then(() => {
-  require('../mastodon/main').default();
+  main();
 }).catch(e => {
   console.error(e);
 });

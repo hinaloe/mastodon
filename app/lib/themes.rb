@@ -13,4 +13,9 @@ class Themes
   def names
     @conf.keys
   end
+
+  # Source path of the theme's stylesheet, relative to app/javascript
+  def stylesheet(name)
+    @conf.fetch(name) { @conf.fetch('default') }
+  end
 end

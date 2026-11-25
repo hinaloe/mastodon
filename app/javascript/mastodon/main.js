@@ -4,8 +4,7 @@ import { default as Mastodon, store } from './containers/mastodon';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import ready from './ready';
-
-const perf = require('./performance');
+import * as perf from './performance';
 
 function main() {
   perf.start('main()');
@@ -26,7 +25,11 @@ function main() {
     store.dispatch(setupBrowserNotifications());
     if (process.env.NODE_ENV === 'production') {
       // avoid offline in dev mode because it's harder to debug
-      require('offline-plugin/runtime').install();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => {
+          console.error(error);
+        });
+      }
       store.dispatch(registerPushNotifications.register());
     }
     perf.stop('main()');

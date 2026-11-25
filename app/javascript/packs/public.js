@@ -1,5 +1,13 @@
-import './public-path';
+import { delegate } from '@rails/ujs';
 import escapeTextContentForBrowser from 'escape-html';
+import { createBrowserHistory } from 'history';
+import IntlMessageFormat from 'intl-messageformat';
+import React from 'react';
+import ReactDOM from 'react-dom';
+import Rellax from 'rellax';
+import { timeAgoString } from '../mastodon/components/relative_timestamp';
+import emojify from '../mastodon/features/emoji/emoji';
+import { getLocale } from '../mastodon/locales';
 import loadPolyfills from '../mastodon/load_polyfills';
 import ready from '../mastodon/ready';
 import { start } from '../mastodon/common';
@@ -24,16 +32,7 @@ window.addEventListener('message', e => {
 });
 
 function main() {
-  const IntlMessageFormat = require('intl-messageformat').default;
-  const { timeAgoString } = require('../mastodon/components/relative_timestamp');
-  const { delegate } = require('@rails/ujs');
-  const emojify = require('../mastodon/features/emoji/emoji').default;
-  const { getLocale } = require('../mastodon/locales');
   const { messages } = getLocale();
-  const React = require('react');
-  const ReactDOM = require('react-dom');
-  const Rellax = require('rellax');
-  const { createBrowserHistory } = require('history');
 
   const scrollToDetailedStatus = () => {
     const history = createBrowserHistory();
@@ -89,7 +88,7 @@ function main() {
     const reactComponents = document.querySelectorAll('[data-component]');
 
     if (reactComponents.length > 0) {
-      import(/* webpackChunkName: "containers/media_container" */ '../mastodon/containers/media_container')
+      import('../mastodon/containers/media_container')
         .then(({ default: MediaContainer }) => {
           [].forEach.call(reactComponents, (component) => {
             [].forEach.call(component.children, (child) => {

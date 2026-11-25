@@ -195,13 +195,19 @@ module.exports = {
       'error',
       {
         devDependencies: [
-          'config/webpack/**',
+          'config/vite/**',
           'app/javascript/mastodon/test_setup.js',
           'app/javascript/**/__tests__/**',
         ],
       },
     ],
-    'import/no-unresolved': 'error',
+    'import/no-unresolved': [
+      'error',
+      {
+        // Provided by the Vite configuration (config/vite)
+        ignore: ['^virtual:', '\\?url$'],
+      },
+    ],
     'import/no-webpack-loader-syntax': 'error',
 
     'promise/catch-or-return': [

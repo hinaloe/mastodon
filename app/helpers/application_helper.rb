@@ -170,6 +170,10 @@ module ApplicationHelper
     content_tag(:div, nil, data: { 'admin-component': name.to_s.camelcase, props: Oj.dump({ locale: I18n.locale }.merge(props)) })
   end
 
+  def theme_stylesheet_tag(theme, **options)
+    vite_stylesheet_tag(Themes.instance.stylesheet(theme), **options)
+  end
+
   def body_classes
     output = (@body_classes || '').split(' ')
     output << "theme-#{current_theme.parameterize}"
