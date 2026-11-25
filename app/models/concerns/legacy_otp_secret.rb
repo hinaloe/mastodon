@@ -24,6 +24,16 @@ module LegacyOtpSecret
     before_save :write_legacy_otp_secret, if: :will_save_change_to_otp_secret?
   end
 
+  # If the new column cannot be decrypted (for instance a process started
+  # with different ACTIVE_RECORD_ENCRYPTION_* keys), use the legacy copy
+  # instead of failing the sign-in, and report it loudly.
+  def otp_secret
+    super
+  rescue ActiveRecord::Encryption::Errors::Decryption => e
+    Rails.logger.error("Unable to decrypt users.otp_secret of user #{id} (#{e.class}); check ACTIVE_RECORD_ENCRYPTION_* keys. Using the legacy copy.")
+    legacy_otp_secret
+  end
+
   private
 
   # Decrypt and return the secret stored by previous versions of

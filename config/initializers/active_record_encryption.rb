@@ -12,9 +12,13 @@
   ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT
   ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY
 ).each do |key|
-  # Fixed keys for development and tests, and placeholders while compiling
-  # assets during the image build
-  ENV[key] ||= "#{key.downcase}_DO_NOT_USE_IN_PRODUCTION" if Rails.env.local? || ENV['SECRET_KEY_BASE_DUMMY']
+  if ENV['SECRET_KEY_BASE_DUMMY']
+    # Random placeholders while compiling assets during the image build
+    ENV[key] = SecureRandom.hex(64)
+  elsif Rails.env.local?
+    # Fixed keys for development and tests
+    ENV[key] ||= "#{key.downcase}_DO_NOT_USE_IN_PRODUCTION"
+  end
 
   value = ENV.fetch(key, '')
 
@@ -32,7 +36,7 @@
     MESSAGE
   end
 
-  next unless Rails.env.production? && !ENV['SECRET_KEY_BASE_DUMMY'] && value.end_with?('DO_NOT_USE_IN_PRODUCTION')
+  next unless Rails.env.production? && value.end_with?('DO_NOT_USE_IN_PRODUCTION')
 
   abort <<~MESSAGE
 

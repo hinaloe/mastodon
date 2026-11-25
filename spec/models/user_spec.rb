@@ -22,6 +22,24 @@ RSpec.describe User, type: :model do
     it 'is used when the secret has not been migrated' do
       expect(user.otp_secret).to eq 'anotpsecretthatshouldbeencrypted'
     end
+
+    it 'is used when the new column cannot be decrypted' do
+      described_class.connection.execute(<<~SQL.squish)
+        UPDATE users SET otp_secret = '{"p":"AAAA","h":{"iv":"AAAAAAAAAAAAAAAA","at":"AAAAAAAAAAAAAAAAAAAAAA=="}}' WHERE id = #{user.id}
+      SQL
+
+      expect(described_class.find(user.id).otp_secret).to eq 'anotpsecretthatshouldbeencrypted'
+    end
+
+    it 'is cleared when two-factor authentication is disabled before migration' do
+      user.update!(otp_required_for_login: true)
+
+      user.disable_two_factor!
+      user.reload
+
+      expect(user.encrypted_otp_secret).to be_nil
+      expect(user.otp_secret).to be_nil
+    end
   end
 
   describe 'otp_secret' do

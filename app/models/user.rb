@@ -250,6 +250,11 @@ class User < ApplicationRecord
   def disable_two_factor!
     self.otp_required_for_login = false
     self.otp_secret = nil
+    # Also clear the attr_encrypted copy of users not migrated yet, for whom
+    # otp_secret does not change here (nil to nil)
+    self.encrypted_otp_secret = nil
+    self.encrypted_otp_secret_iv = nil
+    self.encrypted_otp_secret_salt = nil
     otp_backup_codes&.clear
 
     webauthn_credentials.destroy_all if webauthn_enabled?

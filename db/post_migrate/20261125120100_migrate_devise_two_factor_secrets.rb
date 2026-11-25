@@ -2,7 +2,9 @@
 
 # Copies the OTP secrets of users with two-factor authentication from the
 # attr_encrypted columns to `users.otp_secret` (Active Record Encryption),
-# as upstream did in #29548. The legacy columns are left untouched.
+# as upstream did in #29548. The legacy columns keep the same secret (they
+# are written again with a new IV and salt by LegacyOtpSecret), so the
+# previous release can still read them.
 class MigrateDeviseTwoFactorSecrets < ActiveRecord::Migration[7.2]
   disable_ddl_transaction!
 
@@ -29,6 +31,9 @@ class MigrateDeviseTwoFactorSecrets < ActiveRecord::Migration[7.2]
       end
 
       user.update!(otp_secret: otp_secret)
+
+      # Make sure the stored value can be read back with the configured keys
+      abort_with_verification_error(user) unless MigrationUser.find(user.id)[:otp_secret] == otp_secret
     end
   end
 
@@ -40,6 +45,18 @@ class MigrateDeviseTwoFactorSecrets < ActiveRecord::Migration[7.2]
 
   def users_with_otp_enabled
     MigrationUser.where(otp_required_for_login: true, otp_secret: nil)
+  end
+
+  def abort_with_verification_error(user)
+    abort <<~MESSAGE
+
+      ERROR: The OTP secret stored for user #{user.id} could not be read back.
+
+      Check that the ACTIVE_RECORD_ENCRYPTION_* variables are set to the same values for this
+      migration and for the web and sidekiq processes, then run the migration again.
+
+      Migration aborted.
+    MESSAGE
   end
 
   def abort_with_decryption_error(user)
