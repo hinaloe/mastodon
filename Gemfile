@@ -33,9 +33,7 @@ gem 'browser'
 gem 'charlock_holmes', '~> 0.7.7'
 gem 'chewy', '~> 7.2'
 gem 'devise', '~> 4.8'
-gem 'devise-two-factor', '~> 4.0'
-# attr_encrypted 3.x conflicts with Active Record 7's encrypted attributes
-gem 'attr_encrypted', '~> 4.0'
+gem 'devise-two-factor', '~> 6.2'
 
 group :pam_authentication, optional: true do
   gem 'devise_pam_authenticatable2', '~> 9.2'
