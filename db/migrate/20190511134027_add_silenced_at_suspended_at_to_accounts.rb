@@ -5,7 +5,7 @@ class AddSilencedAtSuspendedAtToAccounts < ActiveRecord::Migration[5.2]
 
   class DomainBlock < ApplicationRecord
     # Dummy class, to make migration possible across version changes
-    enum severity: [:silence, :suspend, :noop]
+    enum :severity, { silence: 0, suspend: 1, noop: 2 }
 
     has_many :accounts, foreign_key: :domain, primary_key: :domain
   end

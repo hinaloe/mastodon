@@ -17,7 +17,7 @@ class IpBlock < ApplicationRecord
 
   include Expireable
 
-  enum severity: {
+  enum :severity, {
     sign_up_requires_approval: 5000,
     no_access: 9999,
   }
