@@ -16,7 +16,6 @@ gem 'rack', '~> 2.2.3'
 
 gem 'hamlit-rails', '~> 0.2'
 gem 'pg', '~> 1.3'
-gem 'makara', '~> 0.5'
 gem 'pghero', '~> 2.8'
 gem 'dotenv-rails', '~> 2.7'
 
@@ -35,6 +34,8 @@ gem 'charlock_holmes', '~> 0.7.7'
 gem 'chewy', '~> 7.2'
 gem 'devise', '~> 4.8'
 gem 'devise-two-factor', '~> 4.0'
+# attr_encrypted 3.x conflicts with Active Record 7's encrypted attributes
+gem 'attr_encrypted', '~> 4.0'
 
 group :pam_authentication, optional: true do
   gem 'devise_pam_authenticatable2', '~> 9.2'
@@ -73,7 +74,7 @@ gem 'pundit', '~> 2.2'
 gem 'premailer-rails'
 gem 'rack-attack', '~> 6.6'
 gem 'rack-cors', '~> 1.1', require: 'rack/cors'
-gem 'rails-i18n', '~> 6.0'
+gem 'rails-i18n', '~> 7.0'
 # Same fork as upstream Mastodon 4.2, which allows YAML aliases in config/settings.yml on Psych 4
 gem 'rails-settings-cached', '~> 0.6', git: 'https://github.com/mastodon/rails-settings-cached.git', ref: '86328ef0bd04ce21cc0504ff5e334591e8c2ccab'
 gem 'redis', '~> 4.5', require: ['redis', 'redis/connection/hiredis']
@@ -109,7 +110,7 @@ group :development, :test do
   gem 'i18n-tasks', '~> 1.0', require: false
   gem 'pry-byebug', '~> 3.9'
   gem 'pry-rails', '~> 0.3'
-  gem 'rspec-rails', '~> 5.1'
+  gem 'rspec-rails', '~> 6.0'
 end
 
 group :test do
