@@ -2,10 +2,6 @@
 
 module PremailerBundledAssetStrategy
   def load(url)
-    asset_host = ENV['CDN_HOST'] || ENV['WEB_DOMAIN'] || ENV['LOCAL_DOMAIN']
-    # WEB_DOMAIN and LOCAL_DOMAIN are bare host names
-    asset_host = "#{Rails.configuration.x.use_https ? 'https' : 'http'}://#{asset_host}" unless asset_host.blank? || asset_host.include?('://')
-
     css = if ViteRuby.instance.dev_server_running? && !url.start_with?('http')
             # The dev server serves the stylesheet as a JS module unless CSS is requested explicitly
             HTTP.headers(accept: 'text/css').get(File.join(ViteRuby.config.origin, url)).to_s
@@ -22,5 +18,20 @@ module PremailerBundledAssetStrategy
     css.gsub(%r{url\((['"]?)/(?!/)}, "url(\\1#{asset_host}/")
   end
 
-  module_function :load
+  # Origin for the absolute URLs in the inlined CSS. CDN_HOST may be empty,
+  # protocol-relative or a full URL; WEB_DOMAIN and LOCAL_DOMAIN are host names.
+  def asset_host
+    host = ENV['CDN_HOST'].presence || ENV['WEB_DOMAIN'].presence || ENV['LOCAL_DOMAIN'].presence
+    scheme = Rails.configuration.x.use_https ? 'https' : 'http'
+
+    if host.blank? || host.include?('://')
+      host
+    elsif host.start_with?('//')
+      "#{scheme}:#{host}"
+    else
+      "#{scheme}://#{host}"
+    end
+  end
+
+  module_function :load, :asset_host
 end
