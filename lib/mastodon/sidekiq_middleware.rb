@@ -22,16 +22,10 @@ class Mastodon::SidekiqMiddleware
 
   def clean_up_sockets!
     clean_up_redis_socket!
-    clean_up_statsd_socket!
   end
 
   def clean_up_redis_socket!
     RedisConfiguration.pool.checkin if Thread.current[:redis]
     Thread.current[:redis] = nil
-  end
-
-  def clean_up_statsd_socket!
-    Thread.current[:statsd_socket]&.close
-    Thread.current[:statsd_socket] = nil
   end
 end
