@@ -22,10 +22,16 @@ export function MastodonManifestSri(): Plugin {
 
       const integrity = new Map<string, string>();
 
-      for (const output of Object.values(bundle)) {
-        const source = output.type === 'chunk' ? output.code : output.source;
-        const digest = createHash('sha384').update(source).digest('base64');
-        integrity.set(output.fileName, `sha384-${digest}`);
+      // Hash the files as written, which may differ from the in-memory output
+      // (for instance by the source map comment).
+      for (const fileName of Object.keys(bundle)) {
+        const filePath = path.resolve(outDir, fileName);
+        if (!fs.existsSync(filePath)) continue;
+
+        const digest = createHash('sha384')
+          .update(fs.readFileSync(filePath))
+          .digest('base64');
+        integrity.set(fileName, `sha384-${digest}`);
       }
 
       for (const manifestName of MANIFESTS) {

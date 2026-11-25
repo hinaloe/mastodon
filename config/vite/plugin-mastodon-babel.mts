@@ -3,7 +3,8 @@
    The sources still use JSX in `.js` files and legacy (TypeScript-style)
    class decorators such as `@connect(...)` and `@injectIntl`, which the
    default Vite pipeline does not understand. This plugin only compiles
-   those two syntaxes (and strips prop-types in production); everything
+   those two syntaxes (and, in production, strips prop-types and rewrites
+   lodash imports to the individual functions); everything
    else is left to Vite, so the output keeps modern syntax.
 
    It also keeps `babel-plugin-react-intl`, which writes the default
@@ -43,6 +44,8 @@ export function MastodonBabel({ root }: { root: string }): Plugin {
       ];
 
       if (production) {
+        // Import only the lodash functions that are used
+        plugins.push('lodash');
         plugins.push([
           'transform-react-remove-prop-types',
           {

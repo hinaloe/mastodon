@@ -2,7 +2,7 @@
   = t('admin.ip_blocks.title')
 
 - content_for :header_tags do
-  = vite_javascript_tag 'admin', async: true, crossorigin: 'anonymous'
+  = vite_javascript_tag 'admin', crossorigin: 'anonymous'
 
 - if can?(:create, :ip_block)
   - content_for :heading_actions do

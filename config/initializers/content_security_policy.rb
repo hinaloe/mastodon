@@ -38,7 +38,6 @@ Rails.application.config.content_security_policy do |p|
 
     p.connect_src :self, :data, :blob, assets_host, media_host, Rails.configuration.x.streaming_api_base_url, *front_end_build_urls
     p.script_src  :self, :unsafe_inline, :unsafe_eval, assets_host
-    # The Vite dev server injects stylesheets with inline <style> elements
     p.style_src   :self, :unsafe_inline, assets_host
     p.child_src   :self, :blob, assets_host
     p.worker_src  :self, :blob, assets_host
@@ -57,7 +56,9 @@ end
 
 Rails.application.config.content_security_policy_nonce_generator = -> request { SecureRandom.base64(16) }
 
-Rails.application.config.content_security_policy_nonce_directives = %w(style-src)
+# In development, the Vite dev server injects stylesheets with inline <style>
+# elements; a nonce would make browsers ignore 'unsafe-inline'.
+Rails.application.config.content_security_policy_nonce_directives = Rails.env.development? ? [] : %w(style-src)
 
 Rails.application.reloader.to_prepare do
   PgHero::HomeController.content_security_policy do |p|

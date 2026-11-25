@@ -3,6 +3,8 @@
 module PremailerBundledAssetStrategy
   def load(url)
     asset_host = ENV['CDN_HOST'] || ENV['WEB_DOMAIN'] || ENV['LOCAL_DOMAIN']
+    # WEB_DOMAIN and LOCAL_DOMAIN are bare host names
+    asset_host = "#{Rails.configuration.x.use_https ? 'https' : 'http'}://#{asset_host}" unless asset_host.blank? || asset_host.include?('://')
 
     css = if ViteRuby.instance.dev_server_running? && !url.start_with?('http')
             # The dev server serves the stylesheet as a JS module unless CSS is requested explicitly

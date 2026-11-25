@@ -50,7 +50,7 @@ module ViteRails::TagHelpers::IntegrityExtension
 
     ''.html_safe.tap do |tags|
       entries.fetch(:scripts).each do |script|
-        tags << javascript_include_tag(script, integrity: vite_manifest.integrity_for(script), crossorigin: crossorigin, type: type, extname: false, **options)
+        tags << tag.script('', src: path_to_asset(script), integrity: vite_manifest.integrity_for(script), crossorigin: crossorigin, type: type, **options)
       end
 
       unless skip_preload_tags
@@ -61,7 +61,7 @@ module ViteRails::TagHelpers::IntegrityExtension
 
       unless skip_style_tags
         entries.fetch(:stylesheets).each do |stylesheet|
-          tags << stylesheet_link_tag(stylesheet, integrity: vite_manifest.integrity_for(stylesheet), media: media, crossorigin: crossorigin, **vite_stylesheet_extname_option)
+          tags << vite_integrity_stylesheet_tag(stylesheet, media: media, crossorigin: crossorigin)
         end
       end
     end
@@ -72,7 +72,7 @@ module ViteRails::TagHelpers::IntegrityExtension
       names.each do |name|
         path = vite_manifest.path_for(name, type: :stylesheet)
 
-        tags << stylesheet_link_tag(path, integrity: vite_manifest.integrity_for(path), crossorigin: crossorigin, **vite_stylesheet_extname_option, **options)
+        tags << vite_integrity_stylesheet_tag(path, crossorigin: crossorigin, **options)
       end
     end
   end
@@ -88,10 +88,12 @@ module ViteRails::TagHelpers::IntegrityExtension
 
   private
 
-  # Rails 6.1 does not know the extname option for stylesheets and would
-  # render it as an attribute; the paths already have an extension.
-  def vite_stylesheet_extname_option
-    Rails::VERSION::MAJOR >= 7 ? { extname: false } : {}
+  # The tags are rendered directly rather than with javascript_include_tag and
+  # stylesheet_link_tag: those would append ".css" to the Sass sources served
+  # by the dev server, send `rel=preload` Link headers that do not match module
+  # scripts, and (through sprockets-rails) drop the integrity attribute.
+  def vite_integrity_stylesheet_tag(source, media: 'screen', crossorigin: 'anonymous', **options)
+    tag.link(rel: 'stylesheet', href: path_to_asset(source), media: media, crossorigin: crossorigin, integrity: vite_manifest.integrity_for(source), **options)
   end
 
   def vite_integrity_preload_tag(source, crossorigin:)

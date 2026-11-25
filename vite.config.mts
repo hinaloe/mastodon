@@ -6,6 +6,7 @@ import { defineConfig } from 'vite';
 import RubyPlugin from 'vite-plugin-ruby';
 
 import { MastodonBabel } from './config/vite/plugin-mastodon-babel.mts';
+import { MastodonCompress } from './config/vite/plugin-compress.mts';
 import { MastodonLocalePacks } from './config/vite/plugin-locale-packs.mts';
 import { MastodonManifestSri } from './config/vite/plugin-manifest-sri.mts';
 import { MastodonPrecomputed } from './config/vite/plugin-precomputed.mts';
@@ -35,6 +36,11 @@ function chunkFileNames({
 }
 
 export default defineConfig(({ command }) => ({
+  define: {
+    // Webpack 4 provided Node's `global` to dependencies (the `intl`
+    // polyfill uses it)
+    global: 'globalThis',
+  },
   resolve: {
     alias: [
       // Modules are imported as `mastodon/...` from anywhere in the sources.
@@ -72,7 +78,8 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
-    chunkSizeWarningLimit: 2 * 1024 * 1024,
+    // in kB; the emoji picker data is large
+    chunkSizeWarningLimit: 1024,
     rollupOptions: {
       output: {
         chunkFileNames,
@@ -98,6 +105,7 @@ export default defineConfig(({ command }) => ({
     MastodonBabel({ root: jsRoot }),
     MastodonPrecomputed({ root: jsRoot }),
     MastodonManifestSri(),
+    command === 'build' && MastodonCompress(),
     command === 'build' &&
       MastodonServiceWorker({
         root: jsRoot,

@@ -195,6 +195,7 @@ module.exports = {
       'error',
       {
         devDependencies: [
+          'config/i18n/**',
           'config/vite/**',
           'app/javascript/mastodon/test_setup.js',
           'app/javascript/**/__tests__/**',
