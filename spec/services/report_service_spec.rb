@@ -40,9 +40,7 @@ RSpec.describe ReportService, type: :service do
     let(:target_account) { Fabricate(:account) }
     let(:status) { Fabricate(:status, account: target_account, visibility: :direct) }
 
-    subject do
-      -> { described_class.new.call(source_account, target_account, status_ids: [status.id]) }
-    end
+    let(:report) { described_class.new.call(source_account, target_account, status_ids: [status.id]) }
 
     context 'when it is addressed to the reporter' do
       before do
@@ -50,13 +48,13 @@ RSpec.describe ReportService, type: :service do
       end
 
       it 'creates a report' do
-        is_expected.to change { target_account.targeted_reports.count }.from(0).to(1)
+        expect { report }.to change { target_account.targeted_reports.count }.from(0).to(1)
       end
     end
 
     context 'when it is not addressed to the reporter' do
       it 'errors out' do
-        is_expected.to raise_error
+        expect { report }.to raise_error(ActiveRecord::RecordNotFound)
       end
     end
   end

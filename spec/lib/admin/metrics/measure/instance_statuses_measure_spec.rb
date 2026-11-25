@@ -13,10 +13,12 @@ describe Admin::Metrics::Measure::InstanceStatusesMeasure do
   let(:params) { ActionController::Parameters.new(domain: domain) }
 
   before do
-    Fabricate(:status, account: Fabricate(:account, domain: domain))
-    Fabricate(:status, account: Fabricate(:account, domain: domain))
+    # Status IDs come from the database clock, which may be slightly ahead of
+    # `end_at`; give them IDs from a few minutes ago so they are in range.
+    Fabricate(:status, id: Mastodon::Snowflake.id_at(5.minutes.ago), account: Fabricate(:account, domain: domain))
+    Fabricate(:status, id: Mastodon::Snowflake.id_at(5.minutes.ago), account: Fabricate(:account, domain: domain))
 
-    Fabricate(:status, account: Fabricate(:account, domain: "foo.#{domain}"))
+    Fabricate(:status, id: Mastodon::Snowflake.id_at(5.minutes.ago), account: Fabricate(:account, domain: "foo.#{domain}"))
   end
 
   describe 'total' do
