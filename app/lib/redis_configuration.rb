@@ -17,7 +17,7 @@ class RedisConfiguration
 
     def pool_size
       if Sidekiq.server?
-        Sidekiq.options[:concurrency]
+        Sidekiq[:concurrency]
       else
         ENV['MAX_THREADS'] || 5
       end
