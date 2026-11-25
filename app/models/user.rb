@@ -136,6 +136,12 @@ class User < ApplicationRecord
   # through attr_encrypted.
   attribute :otp_secret
 
+  # When this version changes the secret (2FA enabled again, reset or
+  # disabled) while the new column exists, clear the copy the next release
+  # stored there. Otherwise, after rolling forward again, devise-two-factor 6
+  # would keep using that older secret instead of this one.
+  after_save :clear_newer_otp_secret, if: :saved_change_to_encrypted_otp_secret?
+
   has_many :session_activations, dependent: :destroy
 
   delegate :auto_play_gif, :default_sensitive, :unfollow_modal, :boost_modal, :delete_modal,
@@ -417,6 +423,12 @@ class User < ApplicationRecord
   end
 
   private
+
+  def clear_newer_otp_secret
+    return unless self.class.connection.column_exists?(:users, :otp_secret)
+
+    self.class.where(id: id).update_all('otp_secret = NULL')
+  end
 
   def send_pending_devise_notifications
     pending_devise_notifications.each do |notification, args, kwargs|
