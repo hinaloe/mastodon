@@ -56,7 +56,12 @@ require_relative '../lib/mastodon/redis_config'
 module Mastodon
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
-    config.load_defaults 6.1
+    config.load_defaults 7.0
+
+    # Keep writing the cache in the 6.1 format until every process runs Rails
+    # 7.0, so web and sidekiq processes of both versions can share the cache
+    # during a rolling deploy or a rollback. Switch to 7.0 in a later release.
+    config.active_support.cache_format_version = 6.1
     config.add_autoload_paths_to_load_path = false
 
     # Settings in config/environments/* take precedence over those specified here.
