@@ -2,7 +2,7 @@
 
 class Admin::SystemCheck::DatabaseSchemaCheck < Admin::SystemCheck::BaseCheck
   def pass?
-    !ActiveRecord::Base.connection.migration_context.needs_migration?
+    !ActiveRecord::Base.connection_pool.migration_context.needs_migration?
   end
 
   def message

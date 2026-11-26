@@ -16,7 +16,7 @@
 #
 
 class AccountWarning < ApplicationRecord
-  enum action: {
+  enum :action, {
     none:                       0,
     disable:                    1_000,
     mark_statuses_as_sensitive: 1_250,
@@ -24,7 +24,7 @@ class AccountWarning < ApplicationRecord
     sensitive:                  2_000,
     silence:                    3_000,
     suspend:                    4_000,
-  }, _suffix: :action
+  }, suffix: :action
 
   belongs_to :account, inverse_of: :account_warnings
   belongs_to :target_account, class_name: 'Account', inverse_of: :strikes

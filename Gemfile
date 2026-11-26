@@ -7,7 +7,7 @@ gem 'pkg-config', '~> 1.4'
 gem 'rexml', '~> 3.2'
 
 gem 'puma', '~> 5.6'
-gem 'rails', '~> 7.1.6'
+gem 'rails', '~> 7.2.3'
 # Same mail series as upstream Mastodon 4.1, the last release on Rails 6.1
 gem 'mail', '~> 2.8.1'
 gem 'sprockets', '~> 3.7.2'
@@ -65,7 +65,6 @@ gem 'kaminari', '~> 1.2'
 gem 'link_header', '~> 0.0'
 gem 'mime-types', '~> 3.4.1', require: 'mime/types/columnar'
 gem 'nokogiri', '~> 1.13'
-gem 'nsa', '~> 0.2'
 gem 'oj', '~> 3.13'
 gem 'ox', '~> 2.14'
 gem 'parslet'
@@ -110,7 +109,7 @@ group :development, :test do
   gem 'i18n-tasks', '~> 1.0', require: false
   gem 'pry-byebug', '~> 3.9'
   gem 'pry-rails', '~> 0.3'
-  gem 'rspec-rails', '~> 6.0'
+  gem 'rspec-rails', '~> 7.1'
 end
 
 group :test do

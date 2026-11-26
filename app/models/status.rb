@@ -48,7 +48,7 @@ class Status < ApplicationRecord
 
   update_index('statuses', :proper)
 
-  enum visibility: [:public, :unlisted, :private, :direct, :limited], _suffix: :visibility
+  enum :visibility, { public: 0, unlisted: 1, private: 2, direct: 3, limited: 4 }, suffix: :visibility
 
   belongs_to :application, class_name: 'Doorkeeper::Application', optional: true
 
@@ -391,7 +391,7 @@ class Status < ApplicationRecord
   #
   # Since Rails 7.0, `values` maps column names to ActiveModel::Attribute
   # objects rather than to raw values.
-  def self._insert_record(values, returning)
+  def self._insert_record(connection, values, returning)
     if values.is_a?(Hash) && values['reblog_of_id']&.value.present?
       primary_key = self.primary_key
       primary_key_value = nil

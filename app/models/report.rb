@@ -46,7 +46,7 @@ class Report < ApplicationRecord
 
   validate :validate_rule_ids
 
-  enum category: {
+  enum :category, {
     other: 0,
     spam: 1_000,
     violation: 2_000,
