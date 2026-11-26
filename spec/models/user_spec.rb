@@ -2,16 +2,76 @@ require 'rails_helper'
 require 'devise_two_factor/spec_helpers'
 
 RSpec.describe User, type: :model do
-  it_behaves_like 'two_factor_backupable'
+  it_behaves_like 'two_factor_backupable' do
+    # devise-two-factor 6 saves the record, which needs an account
+    subject { Fabricate.build(:user) }
+  end
+
+  describe 'legacy otp_secret' do
+    let(:user) do
+      Fabricate(:user,
+                encrypted_otp_secret: "Fttsy7QAa0edaDfdfSz094rRLAxc8cJweDQ4BsWH/zozcdVA8o9GLqcKhn2b\nGi/V\n",
+                encrypted_otp_secret_iv: 'rys3THICkr60BoWC',
+                encrypted_otp_secret_salt: '_LMkAGvdg7a+sDIKjI3mR2Q==')
+    end
+
+    it 'is encrypted with OTP_SECRET environment variable' do
+      expect(user.send(:legacy_otp_secret)).to eq 'anotpsecretthatshouldbeencrypted'
+    end
+
+    it 'is used when the secret has not been migrated' do
+      expect(user.otp_secret).to eq 'anotpsecretthatshouldbeencrypted'
+    end
+
+    it 'is used when the new column cannot be decrypted' do
+      described_class.connection.execute(<<~SQL.squish)
+        UPDATE users SET otp_secret = '{"p":"AAAA","h":{"iv":"AAAAAAAAAAAAAAAA","at":"AAAAAAAAAAAAAAAAAAAAAA=="}}' WHERE id = #{user.id}
+      SQL
+
+      expect(described_class.find(user.id).otp_secret).to eq 'anotpsecretthatshouldbeencrypted'
+    end
+
+    it 'is cleared when two-factor authentication is disabled before migration' do
+      user.update!(otp_required_for_login: true)
+
+      user.disable_two_factor!
+      user.reload
+
+      expect(user.encrypted_otp_secret).to be_nil
+      expect(user.otp_secret).to be_nil
+    end
+  end
 
   describe 'otp_secret' do
-    it 'is encrypted with OTP_SECRET environment variable' do
-      user = Fabricate(:user,
-                       encrypted_otp_secret: "Fttsy7QAa0edaDfdfSz094rRLAxc8cJweDQ4BsWH/zozcdVA8o9GLqcKhn2b\nGi/V\n",
-                       encrypted_otp_secret_iv: 'rys3THICkr60BoWC',
-                       encrypted_otp_secret_salt: '_LMkAGvdg7a+sDIKjI3mR2Q==')
+    it 'encrypts the saved value' do
+      user = Fabricate(:user, otp_secret: '123123123')
 
-      expect(user.otp_secret).to eq 'anotpsecretthatshouldbeencrypted'
+      user.reload
+
+      expect(user.otp_secret).to eq '123123123'
+      expect(user.attributes_before_type_cast['otp_secret']).to_not include '123123123'
+    end
+
+    it 'also stores the secret in the legacy columns, readable by the previous version' do
+      user = Fabricate(:user, otp_secret: 'JBSWY3DPEHPK3PXP')
+
+      user.reload
+
+      expect(user.encrypted_otp_secret).to be_present
+      expect(user.encrypted_otp_secret_salt).to start_with '_'
+      expect(user.send(:legacy_otp_secret)).to eq 'JBSWY3DPEHPK3PXP'
+    end
+
+    it 'clears the legacy columns when two-factor authentication is disabled' do
+      user = Fabricate(:user, otp_required_for_login: true, otp_secret: 'JBSWY3DPEHPK3PXP')
+
+      user.disable_two_factor!
+      user.reload
+
+      expect(user.otp_secret).to be_nil
+      expect(user.encrypted_otp_secret).to be_nil
+      expect(user.encrypted_otp_secret_iv).to be_nil
+      expect(user.encrypted_otp_secret_salt).to be_nil
     end
   end
 

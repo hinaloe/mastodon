@@ -180,6 +180,7 @@ RUN \
   RAILS_ENV=production \
   NODE_ENV=production \
   OTP_SECRET=precompile_placeholder \
+  SECRET_KEY_BASE_DUMMY=1 \
   SECRET_KEY_BASE=precompile_placeholder \
   bin/rails assets:precompile; \
   rm -rf tmp/cache
