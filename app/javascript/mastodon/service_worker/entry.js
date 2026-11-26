@@ -22,7 +22,12 @@ self.addEventListener('install', function(event) {
   event.waitUntil(Promise.all([openWebCache(), fetchRoot()]).then(([cache, root]) => cache.put('/', root)));
 });
 self.addEventListener('activate', function(event) {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.all([
+    self.clients.claim(),
+    // Remove the precache left by the service worker that Webpack's
+    // OfflinePlugin used to generate; nothing reads it anymore.
+    caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('webpack-offline')).map(key => caches.delete(key)))),
+  ]));
 });
 self.addEventListener('fetch', function(event) {
   const url = new URL(event.request.url);

@@ -8,6 +8,9 @@
 public/system
 public/assets
 public/packs
+public/packs-dev
+public/packs-test
+app/javascript/packs/locales
 node_modules
 neo4j
 vendor/bundle

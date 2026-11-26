@@ -2,7 +2,7 @@
   = t('admin.trends.statuses.title')
 
 - content_for :header_tags do
-  = javascript_pack_tag 'admin', async: true, crossorigin: 'anonymous'
+  = vite_javascript_tag 'admin', crossorigin: 'anonymous'
 
 %p= t('admin.trends.statuses.description_html')
 

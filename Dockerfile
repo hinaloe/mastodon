@@ -177,8 +177,6 @@ RUN \
   rm -rf .git
 
 RUN \
-  # webpack 4 relies on the MD4 hash, which needs the OpenSSL legacy provider
-  NODE_OPTIONS=--openssl-legacy-provider \
   RAILS_ENV=production \
   NODE_ENV=production \
   OTP_SECRET=precompile_placeholder \

@@ -29,4 +29,10 @@ module.exports = {
     '<rootDir>/node_modules',
     '<rootDir>/app/javascript',
   ],
+  // Modules provided by the Vite configuration (config/vite)
+  'moduleNameMapper': {
+    '^virtual:mastodon-emoji-compressed$': '<rootDir>/app/javascript/mastodon/features/emoji/emoji_compressed.js',
+    '^virtual:mastodon-sw-locales$': '<rootDir>/app/javascript/mastodon/service_worker/web_push_locales.js',
+    '^(.+)\\?url$': '$1',
+  },
 };

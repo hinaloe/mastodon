@@ -5,7 +5,7 @@ module RoutingHelper
 
   include Rails.application.routes.url_helpers
   include ActionView::Helpers::AssetTagHelper
-  include Webpacker::Helper
+  include ViteRails::TagHelpers
 
   included do
     def default_url_options
@@ -19,8 +19,14 @@ module RoutingHelper
     URI.join(root_url, source).to_s
   end
 
-  def full_pack_url(source, **options)
-    full_asset_url(asset_pack_path(source, **options))
+  # Path of a file built by Vite, by its source path relative to
+  # app/javascript (e.g. "images/preview.jpg").
+  def frontend_asset_path(source, **options)
+    path_to_asset(vite_manifest.path_for(source), **options)
+  end
+
+  def frontend_asset_url(source, **options)
+    full_asset_url(frontend_asset_path(source, **options))
   end
 
   def use_storage?

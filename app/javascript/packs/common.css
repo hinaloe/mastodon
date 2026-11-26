@@ -1,0 +1,2 @@
+/* Stylesheets shared by every page, loaded before the theme so the theme can override them */
+@import 'font-awesome/css/font-awesome.css';

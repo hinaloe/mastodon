@@ -1,5 +1,5 @@
 import IntlMessageFormat from 'intl-messageformat';
-import locales from './web_push_locales';
+import locales from 'virtual:mastodon-sw-locales';
 import { unescape } from 'lodash';
 
 const MAX_NOTIFICATIONS = 5;
