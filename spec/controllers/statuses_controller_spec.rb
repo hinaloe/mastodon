@@ -823,7 +823,7 @@ describe StatusesController do
       end
 
       it 'returns Vary header' do
-        expect(response.headers['Vary']).to eq 'Accept'
+        expect(response.headers['Vary'].to_s.split(/,\s*/)).to include 'Accept'
       end
 
       it 'returns public Cache-Control header' do

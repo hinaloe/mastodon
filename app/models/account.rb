@@ -432,7 +432,7 @@ class Account < ApplicationRecord
         if account.local?
           value
         else
-          ActionController::Base.helpers.strip_tags(value)
+          HtmlPlainText.call(value)
         end
       end
     end

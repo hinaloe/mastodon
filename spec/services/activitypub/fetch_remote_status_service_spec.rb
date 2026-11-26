@@ -124,7 +124,8 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
 
         expect(status).to_not be_nil
         expect(status.url).to eq "https://foo.bar/@foo/1234"
-        expect(strip_tags(status.text)).to eq "Let's change the worldhttps://foo.bar/@foo/1234"
+        # strip_tags keeps HTML entities since Rails 8.0 (same expectation as upstream)
+        expect(strip_tags(status.text)).to eq "Let&#39;s change the worldhttps://foo.bar/@foo/1234"
       end
     end
 
