@@ -56,11 +56,7 @@ require_relative '../lib/mastodon/redis_config'
 module Mastodon
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
-    config.load_defaults 7.2
-
-    # The Rails 8.0 default, set early to avoid the deprecation warning; it
-    # comes with `load_defaults 8.0`.
-    config.active_support.to_time_preserves_timezone = :zone
+    config.load_defaults 8.0
     config.add_autoload_paths_to_load_path = false
 
     # Settings in config/environments/* take precedence over those specified here.
