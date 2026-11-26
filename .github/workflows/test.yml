@@ -101,10 +101,18 @@ jobs:
         run: yarn install --frozen-lockfile --network-timeout 600000
 
       - name: Build the frontend for tests
-        run: bin/rails assets:precompile
+        run: |
+          # Webpacker (before the Vite migration) needs the legacy OpenSSL provider on current Node.js
+          if [ -f config/webpacker.yml ]; then
+            export NODE_OPTIONS=--openssl-legacy-provider
+          fi
+          bin/rails assets:precompile
 
       - name: Load the database schema
         run: bin/rails db:create db:schema:load
 
       - name: Run RSpec
-        run: bundle exec rspec
+        run: |
+          # Set by GitHub Actions, it would change the source code URL that the specs expect
+          unset GITHUB_REPOSITORY
+          bundle exec rspec

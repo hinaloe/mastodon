@@ -6,6 +6,13 @@ describe Rack::Attack, type: :request do
   end
 
   shared_examples 'throttled endpoint' do
+    before do
+      # Rack::Attack periods are not rolling: a period that ends while the
+      # requests are made resets the count. Start at the beginning of a period,
+      # as Rack::Attack computes it (`Time.now.to_i / period`), as upstream does.
+      travel_to Time.zone.at((Time.now.to_i / period.to_i) * period.to_i)
+    end
+
     context 'when the number of requests is lower than the limit' do
       it 'does not change the request status' do
         limit.times do
@@ -30,6 +37,7 @@ describe Rack::Attack, type: :request do
   describe 'throttle excessive sign-up requests by IP address' do
     context 'through the website' do
       let(:limit) { 25 }
+      let(:period) { 5.minutes }
       let(:request) { ->() { post path, headers: { 'REMOTE_ADDR' => remote_ip } } }
 
       context 'for exact path' do
@@ -45,6 +53,7 @@ describe Rack::Attack, type: :request do
 
     context 'through the API' do
       let(:limit) { 5 }
+      let(:period) { 30.minutes }
       let(:request) { ->() { post path, headers: { 'REMOTE_ADDR' => remote_ip } } }
 
       context 'for exact path' do
@@ -65,6 +74,7 @@ describe Rack::Attack, type: :request do
 
   describe 'throttle excessive sign-in requests by IP address' do
     let(:limit) { 25 }
+    let(:period) { 5.minutes }
     let(:request) { ->() { post path, headers: { 'REMOTE_ADDR' => remote_ip } } }
 
     context 'for exact path' do
