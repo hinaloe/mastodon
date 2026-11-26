@@ -48,6 +48,7 @@ class User < ApplicationRecord
     current_sign_in_ip
     last_sign_in_ip
     skip_sign_in_token
+    otp_secret
   )
 
   include Settings::Extend
@@ -127,7 +128,19 @@ class User < ApplicationRecord
   # This avoids a deprecation warning from Rails 5.1
   # It seems possible that a future release of devise-two-factor will
   # handle this itself, and this can be removed from our User class.
+  #
+  # The next release adds a `users.otp_secret` column for devise-two-factor
+  # 6, which stores the secret with Active Record Encryption. It is ignored
+  # above so that this version, if it runs after the column is added (during
+  # the deploy or after a rollback), never writes the plain secret into it
+  # through attr_encrypted.
   attribute :otp_secret
+
+  # When this version changes the secret (2FA enabled again, reset or
+  # disabled) while the new column exists, clear the copy the next release
+  # stored there. Otherwise, after rolling forward again, devise-two-factor 6
+  # would keep using that older secret instead of this one.
+  after_save :clear_newer_otp_secret, if: :saved_change_to_encrypted_otp_secret?
 
   has_many :session_activations, dependent: :destroy
 
@@ -410,6 +423,12 @@ class User < ApplicationRecord
   end
 
   private
+
+  def clear_newer_otp_secret
+    return unless self.class.connection.column_exists?(:users, :otp_secret)
+
+    self.class.where(id: id).update_all('otp_secret = NULL')
+  end
 
   def send_pending_devise_notifications
     pending_devise_notifications.each do |notification, args, kwargs|
