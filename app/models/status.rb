@@ -388,17 +388,18 @@ class Status < ApplicationRecord
   end
 
   # Hack to use a "INSERT INTO ... SELECT ..." query instead of "INSERT INTO ... VALUES ..." query
+  #
+  # Since Rails 7.0, `values` maps column names to ActiveModel::Attribute
+  # objects rather than to raw values.
   def self._insert_record(values)
-    if values.is_a?(Hash) && values['reblog_of_id'].present?
+    if values.is_a?(Hash) && values['reblog_of_id']&.value.present?
       primary_key = self.primary_key
       primary_key_value = nil
 
-      if primary_key
-        primary_key_value = values[primary_key]
-
-        if !primary_key_value && prefetch_primary_key?
+      if prefetch_primary_key? && primary_key
+        values[primary_key] ||= begin
           primary_key_value = next_sequence_value
-          values[primary_key] = primary_key_value
+          _default_attributes[primary_key].with_cast_value(primary_key_value)
         end
       end
 
@@ -408,7 +409,7 @@ class Status < ApplicationRecord
       # Since we are using SELECT instead of VALUES, a non-error `nil` return is possible.
       # For our purposes, it's equivalent to a foreign key constraint violation
       result = connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
-      raise ActiveRecord::InvalidForeignKey, "(reblog_of_id)=(#{values['reblog_of_id']}) is not present in table \"statuses\"" if result.nil?
+      raise ActiveRecord::InvalidForeignKey, "(reblog_of_id)=(#{values['reblog_of_id'].value}) is not present in table \"statuses\"" if result.nil?
 
       result
     else
@@ -429,9 +430,9 @@ class Status < ApplicationRecord
 
     binds = []
     reblog_bind = nil
-    values.each do |name, value|
+    values.each do |name, attribute|
       attr = arel_table[name]
-      bind = predicate_builder.build_bind_attribute(attr.name, value)
+      bind = predicate_builder.build_bind_attribute(attr.name, attribute.value)
 
       im.columns << attr
       binds << bind

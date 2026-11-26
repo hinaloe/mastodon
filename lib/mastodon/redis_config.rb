@@ -39,6 +39,23 @@ REDIS_CACHE_PARAMS = {
   pool_timeout: 5,
 }.freeze
 
+# Cache entries include Active Record objects dumped with Marshal, whose
+# format depends on the Rails version and on the cache and marshalling format
+# settings: a process running another version can fail to load them (for
+# instance Rails 6.1 reading objects written by 7.0). Keep the entries of each
+# combination in their own namespace, so processes of different versions never
+# share them during a rolling deploy or after a rollback. The cache starts
+# empty after an upgrade.
+def versioned_cache_params(config)
+  versions = [
+    "rails#{Rails::VERSION::MAJOR}.#{Rails::VERSION::MINOR}",
+    "cache#{config.active_support.cache_format_version || ActiveSupport::Cache.format_version}",
+    ("ar#{config.active_record.marshalling_format_version}" if config.active_record.marshalling_format_version),
+  ].compact
+
+  REDIS_CACHE_PARAMS.merge(namespace: [REDIS_CACHE_PARAMS[:namespace], *versions].join(':'))
+end
+
 REDIS_SIDEKIQ_PARAMS = {
   driver: :hiredis,
   url: ENV['SIDEKIQ_REDIS_URL'],

@@ -79,7 +79,7 @@ class Announcement < ApplicationRecord
       end
     end
 
-    ActiveRecord::Associations::Preloader.new.preload(records, :custom_emoji)
+    ActiveRecord::Associations::Preloader.new(records: records, associations: :custom_emoji).call
     records
   end
 
