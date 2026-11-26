@@ -17,6 +17,28 @@ RSpec.describe Tag, type: :model do
     it 'valid with ａｅｓｔｈｅｔｉｃ' do
       expect(Tag.new(name: 'ａｅｓｔｈｅｔｉｃ')).to be_valid
     end
+
+    describe 'renaming' do
+      it 'allows changing the case' do
+        tag = Fabricate(:tag, name: 'helloworld')
+        tag.name = 'HelloWorld'
+        expect(tag).to be_valid
+      end
+
+      it 'does not allow other changes' do
+        tag = Fabricate(:tag, name: 'helloworld')
+        tag.name = 'goodbyeworld'
+        expect(tag).to_not be_valid
+      end
+
+      # Only ASCII case changes: PostgreSQL's lower() would not match the
+      # new name otherwise, and a duplicate tag could be created
+      it 'does not allow Unicode case folding that changes the letters' do
+        tag = Fabricate(:tag, name: 'straße')
+        tag.name = 'STRASSE'
+        expect(tag).to_not be_valid
+      end
+    end
   end
 
   describe 'HASHTAG_RE' do

@@ -20,7 +20,7 @@ describe Admin::ReportNotesController do
         let(:account_id) { nil }
 
         context 'when create_and_resolve flag is on' do
-          let(:params) { { report_note: { content: 'test content', report_id: report.id }, create_and_resolve: nil } }
+          let(:params) { { report_note: { content: 'test content', report_id: report.id }, create_and_resolve: '' } }
 
           it 'creates a report note and resolves report' do
             expect { subject }.to change { ReportNote.count }.by(1)
@@ -45,7 +45,7 @@ describe Admin::ReportNotesController do
         let(:account_id) { user.account.id }
 
         context 'when create_and_unresolve flag is on' do
-          let(:params) { { report_note: { content: 'test content', report_id: report.id }, create_and_unresolve: nil } }
+          let(:params) { { report_note: { content: 'test content', report_id: report.id }, create_and_unresolve: '' } }
 
           it 'creates a report note and unresolves report' do
             expect { subject }.to change { ReportNote.count }.by(1)

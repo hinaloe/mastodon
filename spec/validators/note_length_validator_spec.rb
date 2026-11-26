@@ -14,6 +14,14 @@ describe NoteLengthValidator do
       expect(account.errors).to have_received(:add)
     end
 
+    it 'counts ZWJ sequence emoji as single characters' do
+      text = '🏳️‍⚧️' * 500
+      account = double(note: text, errors: double(add: nil))
+
+      subject.validate_each(account, 'note', text)
+      expect(account.errors).to_not have_received(:add)
+    end
+
     it 'counts URLs as 23 characters flat' do
       text   = ('a' * 476) + " http://#{'b' * 30}.com/example"
       account = double(note: text, errors: double(add: nil))

@@ -34,6 +34,24 @@ describe StatusLengthValidator do
       expect(status.errors).to have_received(:add)
     end
 
+    it 'counts multi byte emoji as single characters' do
+      status = double(spoiler_text: '', text: '✨' * 500, errors: double(add: nil), local?: true, reblog?: false)
+      subject.validate(status)
+      expect(status.errors).to_not have_received(:add)
+    end
+
+    it 'counts ZWJ sequence emoji as single characters' do
+      status = double(spoiler_text: '', text: '🏳️‍⚧️' * 500, errors: double(add: nil), local?: true, reblog?: false)
+      subject.validate(status)
+      expect(status.errors).to_not have_received(:add)
+    end
+
+    it 'adds an error when there are more than 500 emoji' do
+      status = double(spoiler_text: '', text: '🏳️‍⚧️' * 501, errors: double(add: nil), local?: true, reblog?: false)
+      subject.validate(status)
+      expect(status.errors).to have_received(:add)
+    end
+
     it 'counts URLs as 23 characters flat' do
       text   = ('a' * 476) + " http://#{'b' * 30}.com/example"
       status = double(spoiler_text: '', text: text, errors: double(add: nil), local?: true, reblog?: false)

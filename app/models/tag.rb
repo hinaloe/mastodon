@@ -90,7 +90,7 @@ class Tag < ApplicationRecord
 
   class << self
     def find_or_create_by_names(name_or_names)
-      Array(name_or_names).map(&method(:normalize)).uniq { |str| str.mb_chars.downcase.to_s }.map do |normalized_name|
+      Array(name_or_names).map(&method(:normalize)).uniq(&:downcase).map do |normalized_name|
         tag = begin
           # Use `create` rather than `create!`: callers rely on getting an
           # unsaved, invalid Tag back for invalid names and filter it with
@@ -149,6 +149,6 @@ class Tag < ApplicationRecord
   private
 
   def validate_name_change
-    errors.add(:name, I18n.t('tags.does_not_match_previous_name')) unless name_was.mb_chars.casecmp(name.mb_chars).zero?
+    errors.add(:name, I18n.t('tags.does_not_match_previous_name')) unless name_was.casecmp(name).zero?
   end
 end
