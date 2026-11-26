@@ -14,7 +14,7 @@
 #
 
 class Admin::ActionLog < ApplicationRecord
-  serialize :recorded_changes
+  serialize :recorded_changes, coder: YAML
 
   belongs_to :account
   belongs_to :target, polymorphic: true, optional: true
@@ -41,5 +41,9 @@ class Admin::ActionLog < ApplicationRecord
         unconfirmed_email: [nil, target.unconfirmed_email]
       )
     end
+
+    # The column is NOT NULL. Before Rails 7.1 the attribute defaulted to an
+    # empty string (stored as YAML); keep storing that for other actions.
+    self.recorded_changes = '' if recorded_changes.nil?
   end
 end

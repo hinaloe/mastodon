@@ -3,11 +3,14 @@
 module RoutingHelper
   extend ActiveSupport::Concern
 
-  include Rails.application.routes.url_helpers
   include ActionView::Helpers::AssetTagHelper
   include ViteRails::TagHelpers
 
   included do
+    # Since Rails 7.1, the route helpers are only defined when this is
+    # included in the class itself (upstream #27189)
+    include Rails.application.routes.url_helpers
+
     def default_url_options
       ActionMailer::Base.default_url_options
     end

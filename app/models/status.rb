@@ -391,7 +391,7 @@ class Status < ApplicationRecord
   #
   # Since Rails 7.0, `values` maps column names to ActiveModel::Attribute
   # objects rather than to raw values.
-  def self._insert_record(values)
+  def self._insert_record(values, returning)
     if values.is_a?(Hash) && values['reblog_of_id']&.value.present?
       primary_key = self.primary_key
       primary_key_value = nil
@@ -408,7 +408,7 @@ class Status < ApplicationRecord
 
       # Since we are using SELECT instead of VALUES, a non-error `nil` return is possible.
       # For our purposes, it's equivalent to a foreign key constraint violation
-      result = connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+      result = connection.insert(im, "#{self} Create", primary_key || false, primary_key_value, returning: returning)
       raise ActiveRecord::InvalidForeignKey, "(reblog_of_id)=(#{values['reblog_of_id'].value}) is not present in table \"statuses\"" if result.nil?
 
       result

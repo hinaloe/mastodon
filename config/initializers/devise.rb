@@ -413,3 +413,11 @@ Devise.setup do |config|
     config.ldap_uid_conversion_replace  = ENV.fetch('LDAP_UID_CONVERSION_REPLACE', '_')
   end
 end
+
+# Devise 4.9 still reads `Rails.application.secrets`, deprecated in Rails 7.1.
+# This app only uses SECRET_KEY_BASE (upstream #27578).
+class Devise::SecretKeyFinder
+  def find
+    @application.secret_key_base
+  end
+end
